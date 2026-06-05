@@ -1,0 +1,2123 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>QuestBoard - Gamified Productivity Dashboard</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<link rel="manifest" href="data:application/json;base64,eyJuYW1lIjoiUXVlc3RCb2FyZCIsInNob3J0X25hbWUiOiJRdWVzdEJvYXJkIiwiZGVzY3JpcHRpb24iOiJHYW1pZmllZCBQcm9kdWN0aXZpdHkgRGFzaGJvYXJkIiwiZGlzcGxheSI6InN0YW5kYWxvbmUiLCJiYWNrZ3JvdW5kX2NvbG9yIjoiIzEyMTIyMjAiLCJ0aGVtZV9jb2xvciI6IiM4YjVjZjYifQ==">
+<style>
+:root {
+  --bg: #121220;
+  --bg2: #1a1a30;
+  --card: #252545;
+  --card-hover: #2e2e58;
+  --sidebar-bg: #1c1c38;
+  --accent: #8b5cf6;
+  --accent2: #3b82f6;
+  --accent-dim: rgba(139,92,246,.15);
+  --success: #22c55e;
+  --warning: #eab308;
+  --danger: #ef4444;
+  --text: #f1f5f9;
+  --text2: #b0bdd0;
+  --text3: #6b7fa0;
+  --border: #3a3a60;
+  --radius: 10px;
+}
+[data-theme="light"] {
+  --bg: #f0f2f8;
+  --bg2: #e4e7f0;
+  --card: #ffffff;
+  --card-hover: #f5f5ff;
+  --sidebar-bg: #e8eaf2;
+  --text: #1e293b;
+  --text2: #475569;
+  --text3: #94a3b8;
+  --border: #c8cde0;
+  --accent-dim: rgba(139,92,246,.08);
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',sans-serif;background:var(--bg);color:var(--text);overflow:hidden;height:100vh;font-size:15px;line-height:1.5}
+::-webkit-scrollbar{width:7px;height:7px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:4px}
+::-webkit-scrollbar-thumb:hover{background:var(--accent)}
+
+/* ===== LOADING SCREEN ===== */
+#loading-screen{position:fixed;inset:0;background:var(--bg);display:flex;align-items:center;justify-content:center;z-index:9999;flex-direction:column;gap:16px}
+#loading-screen .ld-icon{font-size:4rem;animation:ldBounce 1s ease infinite}
+#loading-screen .ld-text{color:var(--text);font-size:1.1rem;font-weight:600}
+@keyframes ldBounce{0%,100%{transform:translateY(0)}50%{transform:translateY(-12px)}}
+
+/* ===== LAYOUT ===== */
+#app{display:flex;height:100vh;position:relative}
+#sidebar{width:240px;min-width:240px;background:var(--sidebar-bg);border-right:2px solid var(--border);display:flex;flex-direction:column;transition:width .3s ease;overflow:hidden;z-index:40}
+#sidebar.collapsed{width:56px;min-width:56px}
+#sidebar.collapsed .qb-nav-label,#sidebar.collapsed .qb-sidebar-title,#sidebar.collapsed #sidebarGamification{display:none}
+#sidebar.collapsed .qb-nav-item{justify-content:center;padding:12px 0}
+#sidebar.collapsed .qb-nav-icon{margin-right:0}
+#main-content{flex:1;overflow-y:auto;overflow-x:hidden;padding:24px 28px;position:relative;background:var(--bg)}
+
+/* ===== SIDEBAR ===== */
+.qb-sidebar-header{padding:18px 16px;border-bottom:2px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:8px}
+.qb-sidebar-title{font-size:1.15rem;font-weight:800;background:linear-gradient(135deg,var(--accent),var(--accent2));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;white-space:nowrap}
+.qb-toggle-btn{background:none;border:none;color:var(--text2);cursor:pointer;font-size:1.1rem;padding:4px 6px;border-radius:6px;transition:.2s}
+.qb-toggle-btn:hover{background:var(--card);color:var(--text)}
+.qb-nav{flex:1;padding:10px 8px;overflow-y:auto}
+.qb-nav-item{display:flex;align-items:center;padding:10px 14px;border-radius:8px;cursor:pointer;transition:all .15s;margin-bottom:2px;color:var(--text2);font-size:.9rem;border:none;background:none;width:100%;text-align:left;font-family:inherit}
+.qb-nav-item:hover{background:var(--card);color:var(--text)}
+.qb-nav-item.active{background:var(--accent-dim);color:var(--text);font-weight:600;border-left:3px solid var(--accent)}
+.qb-nav-icon{width:22px;margin-right:10px;text-align:center;font-size:.95rem}
+.qb-nav-label{white-space:nowrap}
+
+/* ===== BUTTONS ===== */
+.qb-btn{display:inline-flex;align-items:center;gap:6px;padding:8px 16px;border-radius:8px;border:none;cursor:pointer;font-size:.875rem;font-weight:600;transition:all .15s;font-family:inherit;color:var(--text);white-space:nowrap}
+.qb-btn:active{transform:scale(.97)}
+.qb-btn-primary{background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff}
+.qb-btn-primary:hover{filter:brightness(1.1);transform:translateY(-1px)}
+.qb-btn-secondary{background:var(--card);border:1px solid var(--border)}
+.qb-btn-secondary:hover{border-color:var(--accent)}
+.qb-btn-danger{background:var(--danger);color:#fff}
+.qb-btn-danger:hover{filter:brightness(1.1)}
+.qb-btn-success{background:var(--success);color:#fff}
+.qb-btn-success:hover{filter:brightness(1.1)}
+.qb-btn-sm{padding:5px 10px;font-size:.8rem}
+.qb-btn-icon{width:36px;height:36px;padding:0;justify-content:center;background:var(--card);border:1px solid var(--border);color:var(--text2);border-radius:8px;cursor:pointer;transition:.15s;display:inline-flex;align-items:center}
+.qb-btn-icon:hover{border-color:var(--accent);color:var(--accent)}
+
+/* ===== CARDS ===== */
+.qb-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:18px;transition:border-color .2s}
+.qb-card:hover{border-color:rgba(139,92,246,.3)}
+.qb-stat-card{text-align:center;padding:14px 10px}
+
+/* ===== FORMS ===== */
+.qb-input,.qb-textarea,.qb-select{background:var(--bg);border:1px solid var(--border);color:var(--text);padding:9px 12px;border-radius:8px;font-family:inherit;font-size:.875rem;width:100%;transition:border-color .2s}
+.qb-input:focus,.qb-textarea:focus,.qb-select:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px rgba(139,92,246,.12)}
+.qb-textarea{resize:vertical;min-height:70px}
+.qb-select{cursor:pointer;appearance:auto}
+.qb-label{display:block;font-size:.85rem;font-weight:600;margin-bottom:5px;color:var(--text2)}
+.qb-form-group{margin-bottom:14px}
+
+/* ===== BADGES ===== */
+.qb-badge{display:inline-flex;align-items:center;padding:2px 10px;border-radius:20px;font-size:.75rem;font-weight:600}
+.qb-badge-work{background:rgba(59,130,246,.2);color:#60a5fa}
+.qb-badge-daily{background:rgba(34,197,94,.2);color:#4ade80}
+.qb-badge-project{background:rgba(168,85,247,.2);color:#c084fc}
+.qb-badge-low{background:rgba(34,197,94,.2);color:#4ade80}
+.qb-badge-medium{background:rgba(59,130,246,.2);color:#60a5fa}
+.qb-badge-high{background:rgba(234,179,8,.2);color:#facc15}
+.qb-badge-critical{background:rgba(239,68,68,.2);color:#f87171}
+.qb-tag{display:inline-flex;align-items:center;padding:2px 8px;border-radius:12px;font-size:.72rem;background:rgba(139,92,246,.12);color:var(--accent);margin:1px}
+
+/* ===== CHIP / TOGGLE ===== */
+.qb-chip{display:inline-flex;align-items:center;gap:4px;padding:5px 14px;border-radius:20px;font-size:.8rem;cursor:pointer;transition:.15s;border:1px solid var(--border);color:var(--text2);background:none;font-family:inherit}
+.qb-chip:hover,.qb-chip.active{background:var(--accent-dim);border-color:var(--accent);color:var(--text)}
+.qb-toggle-row{display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border)}
+.qb-toggle-row:last-child{border-bottom:none}
+.qb-toggle{position:relative;width:42px;height:22px;background:var(--border);border-radius:11px;cursor:pointer;transition:.2s;border:none;padding:0}
+.qb-toggle::after{content:'';position:absolute;top:3px;left:3px;width:16px;height:16px;border-radius:50%;background:#fff;transition:.2s}
+.qb-toggle.on{background:var(--accent)}
+.qb-toggle.on::after{left:23px}
+
+/* ===== MODAL ===== */
+.qb-modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.65);backdrop-filter:blur(4px);z-index:100;display:none;align-items:center;justify-content:center;padding:20px}
+.qb-modal-overlay.show{display:flex}
+.qb-modal{background:var(--card);border:1px solid var(--border);border-radius:14px;max-width:620px;width:100%;max-height:88vh;overflow-y:auto;animation:modalIn .25s ease}
+@keyframes modalIn{from{opacity:0;transform:scale(.96)}to{opacity:1;transform:scale(1)}}
+.qb-modal-header{display:flex;align-items:center;justify-content:space-between;padding:18px 22px;border-bottom:1px solid var(--border)}
+.qb-modal-title{font-size:1.05rem;font-weight:700}
+.qb-modal-close{background:none;border:none;color:var(--text2);cursor:pointer;font-size:1.2rem;padding:4px}
+.qb-modal-close:hover{color:var(--text)}
+.qb-modal-body{padding:22px}
+.qb-modal-footer{display:flex;justify-content:flex-end;gap:8px;padding:14px 22px;border-top:1px solid var(--border)}
+
+/* ===== TOAST ===== */
+#toast-container{position:fixed;top:20px;right:20px;z-index:200;display:flex;flex-direction:column;gap:8px;pointer-events:none}
+.qb-toast{padding:12px 18px;border-radius:10px;font-size:.875rem;animation:toastIn .3s ease,toastOut .3s ease 2.7s forwards;display:flex;align-items:center;gap:8px;min-width:240px;box-shadow:0 4px 24px rgba(0,0,0,.35);pointer-events:auto;color:#fff}
+.qb-toast-success{background:var(--success)}
+.qb-toast-error{background:var(--danger)}
+.qb-toast-info{background:var(--accent2)}
+.qb-toast-warning{background:var(--warning);color:#1a1a2e}
+@keyframes toastIn{from{opacity:0;transform:translateX(80px)}to{opacity:1;transform:translateX(0)}}
+@keyframes toastOut{from{opacity:1}to{opacity:0;transform:translateY(-10px)}}
+
+/* ===== CONTEXT MENU ===== */
+.qb-ctx{position:fixed;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:5px;z-index:150;display:none;min-width:170px;box-shadow:0 8px 30px rgba(0,0,0,.45)}
+.qb-ctx-item{padding:8px 14px;border-radius:6px;cursor:pointer;font-size:.85rem;color:var(--text2);display:flex;align-items:center;gap:8px;transition:.12s}
+.qb-ctx-item:hover{background:var(--card-hover);color:var(--text)}
+
+/* ===== TASK CARDS ===== */
+.qb-task{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:14px;margin-bottom:8px;transition:all .2s;cursor:pointer}
+.qb-task:hover{border-color:rgba(139,92,246,.3);transform:translateY(-1px)}
+.qb-task.done{opacity:.55}
+.qb-task.done .qb-task-title{text-decoration:line-through}
+.qb-task-check{width:22px;height:22px;border-radius:50%;border:2px solid var(--border);cursor:pointer;display:flex;align-items:center;justify-content:center;transition:.2s;flex-shrink:0}
+.qb-task-check:hover{border-color:var(--success)}
+.qb-task-check.checked{background:var(--success);border-color:var(--success)}
+.qb-task-check.checked::after{content:'\2713';color:#fff;font-size:.7rem;font-weight:700}
+.qb-task-title{font-weight:600;font-size:.95rem;color:var(--text)}
+
+/* ===== GAMIFICATION WIDGETS ===== */
+.qb-xp-bar-bg{height:6px;background:var(--border);border-radius:3px;overflow:hidden;margin-top:6px}
+.qb-xp-bar-fill{height:100%;background:linear-gradient(90deg,var(--accent),var(--accent2));border-radius:3px;transition:width .5s ease}
+.qb-xp-label{font-size:.72rem;color:var(--text3);margin-top:3px;display:flex;justify-content:space-between}
+.qb-level-badge{display:inline-flex;align-items:center;gap:5px;padding:4px 10px;background:linear-gradient(135deg,var(--accent),var(--accent2));border-radius:16px;font-size:.78rem;font-weight:700;color:#fff}
+.qb-streak{display:flex;align-items:center;gap:5px;margin-top:8px;font-size:.85rem;color:var(--warning);font-weight:600}
+.qb-pet{display:flex;align-items:center;gap:8px;margin-top:8px;padding:8px;background:var(--bg);border-radius:8px;border:1px solid var(--border)}
+.qb-pet-emoji{font-size:1.8rem}
+.qb-pet-info{font-size:.75rem;color:var(--text2)}
+.qb-pet-bar{height:4px;background:var(--border);border-radius:2px;margin-top:4px;width:90px}
+.qb-pet-fill{height:100%;background:var(--success);border-radius:2px}
+
+/* ===== XP FLOAT & CONFETTI ===== */
+.qb-xp-float{position:fixed;pointer-events:none;font-weight:800;font-size:1.1rem;color:var(--accent);z-index:300;animation:xpUp 1.4s ease forwards}
+@keyframes xpUp{0%{opacity:1;transform:translateY(0) scale(1)}50%{opacity:1;transform:translateY(-35px) scale(1.2)}100%{opacity:0;transform:translateY(-70px) scale(.8)}}
+.qb-confetti{position:fixed;width:8px;height:8px;z-index:300;pointer-events:none;animation:confDrop 2s ease forwards}
+@keyframes confDrop{0%{opacity:1;transform:translateY(0) rotate(0)}100%{opacity:0;transform:translateY(100vh) rotate(720deg)}}
+
+/* ===== ACHIEVEMENT POPUP ===== */
+.qb-achieve{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:var(--card);border:2px solid var(--warning);border-radius:16px;padding:28px;text-align:center;z-index:250;animation:achIn .4s ease}
+@keyframes achIn{0%{opacity:0;transform:translate(-50%,-50%) scale(.5)}60%{transform:translate(-50%,-50%) scale(1.08)}100%{opacity:1;transform:translate(-50%,-50%) scale(1)}}
+
+/* ===== CALENDAR ===== */
+.qb-cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:2px}
+.qb-cal-head{text-align:center;font-size:.72rem;font-weight:700;color:var(--text3);padding:8px 2px;text-transform:uppercase;letter-spacing:.5px}
+.qb-cal-day{min-height:44px;padding:4px;border-radius:8px;cursor:pointer;transition:.15s;position:relative;font-size:.82rem;color:var(--text)}
+.qb-cal-day:hover{background:var(--card)}
+.qb-cal-day.today{background:var(--accent-dim);border:1px solid var(--accent);font-weight:700}
+.qb-cal-day.other{opacity:.28}
+.qb-cal-dot{width:5px;height:5px;border-radius:50%;display:inline-block;margin:1px}
+.qb-time-slot{height:48px;border-bottom:1px solid rgba(58,58,96,.35);padding:2px 6px;font-size:.7rem;color:var(--text3);position:relative}
+.qb-task-block{position:absolute;left:3px;right:3px;border-radius:5px;padding:3px 7px;font-size:.72rem;cursor:pointer;overflow:hidden;z-index:2;transition:.15s;color:var(--text)}
+.qb-task-block:hover{transform:scale(1.02);z-index:3;filter:brightness(1.15)}
+.qb-week-col{border-left:1px solid var(--border);min-height:100%}
+
+/* ===== NOTES ===== */
+.qb-note-card{background:var(--card);border-radius:10px;padding:14px;cursor:pointer;transition:.2s;border:1px solid var(--border);position:relative}
+.qb-note-card:hover{transform:translateY(-2px);border-color:rgba(139,92,246,.3)}
+.qb-note-card.pinned{border-color:var(--warning)}
+.qb-rich-toolbar{display:flex;gap:2px;padding:7px;background:var(--bg2);border:1px solid var(--border);border-radius:8px 8px 0 0;flex-wrap:wrap}
+.qb-rich-toolbar button{background:none;border:1px solid transparent;color:var(--text2);cursor:pointer;padding:5px 9px;border-radius:5px;font-size:.8rem;transition:.15s;font-family:inherit}
+.qb-rich-toolbar button:hover{background:var(--card);color:var(--text);border-color:var(--border)}
+.qb-rich-editor{min-height:180px;padding:14px;border:1px solid var(--border);border-top:none;border-radius:0 0 8px 8px;background:var(--bg);color:var(--text);outline:none;font-size:.95rem;line-height:1.6}
+
+/* ===== MOOD BOARD ===== */
+.qb-mood-canvas{position:relative;overflow:hidden;background:var(--bg2);border:1px solid var(--border);border-radius:12px;min-height:500px;cursor:grab}
+.qb-mood-canvas.grabbing{cursor:grabbing}
+.qb-mood-item{position:absolute;border-radius:8px;cursor:move;min-width:60px;min-height:40px;user-select:none}
+.qb-mood-item.selected{box-shadow:0 0 0 2px var(--accent)}
+.qb-mood-sticky{padding:10px;font-size:.85rem;min-width:100px;min-height:70px;resize:both;overflow:hidden}
+.qb-mood-connector{position:absolute;pointer-events:none;z-index:1}
+.qb-resize-handle{position:absolute;width:12px;height:12px;background:var(--accent);border-radius:50%;cursor:se-resize;right:-5px;bottom:-5px;z-index:5}
+
+/* ===== CHARTS ===== */
+.qb-chart-box{position:relative;height:240px;background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:14px}
+
+/* ===== RECORDING ===== */
+.qb-rec{display:inline-flex;align-items:center;gap:6px;color:var(--danger);font-size:.85rem;font-weight:600}
+.qb-rec-dot{width:8px;height:8px;background:var(--danger);border-radius:50%;animation:pulse 1s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+
+/* ===== FILTER BAR ===== */
+.qb-filter-bar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;align-items:center}
+.qb-filter-bar select,.qb-filter-bar input{width:auto;min-width:130px}
+
+/* ===== VIEW ANIMATION ===== */
+.qb-view{animation:viewIn .25s ease}
+@keyframes viewIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+
+/* ===== LAYOUT HELPERS ===== */
+.qb-row{display:flex;align-items:center}.qb-row-wrap{display:flex;flex-wrap:wrap}.qb-col{flex-direction:column}
+.qb-between{justify-content:space-between}.qb-center{justify-content:center}.qb-start{justify-content:flex-start}
+.qb-gap-8{gap:8px}.qb-gap-12{gap:12px}.qb-gap-16{gap:16px}.qb-gap-20{gap:20px}.qb-gap-24{gap:24px}
+.qb-w-full{width:100%}.qb-flex-1{flex:1;min-width:0}.qb-shrink-0{flex-shrink:0}
+.qb-grid{display:grid}.qb-grid-2{grid-template-columns:repeat(2,1fr)}.qb-grid-3{grid-template-columns:repeat(3,1fr)}.qb-grid-4{grid-template-columns:repeat(4,1fr)}
+.qb-mb-4{margin-bottom:8px}.qb-mb-8{margin-bottom:16px}.qb-mb-12{margin-bottom:24px}.qb-mb-16{margin-bottom:32px}
+.qb-mt-4{margin-top:8px}.qb-mt-8{margin-top:16px}.qb-mt-12{margin-top:24px}
+.qb-p-8{padding:8px}.qb-p-12{padding:12px}.qb-p-16{padding:16px}.qb-p-20{padding:20px}
+.qb-text-sm{font-size:.85rem}.qb-text-xs{font-size:.75rem}.qb-text-lg{font-size:1.1rem}.qb-text-xl{font-size:1.25rem}.qb-text-2xl{font-size:1.5rem}
+.qb-text-muted{color:var(--text2)}.qb-text-dim{color:var(--text3)}
+.qb-bold{font-weight:700}.qb-semibold{font-weight:600}
+.qb-truncate{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.qb-rel{position:relative}
+.qb-hidden{display:none!important}
+.qb-stat-val{font-size:1.6rem;font-weight:800;background:linear-gradient(135deg,var(--accent),var(--accent2));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.qb-stat-lbl{font-size:.78rem;color:var(--text3);margin-top:3px}
+.qb-subtask{display:flex;align-items:center;gap:8px;padding:3px 0;font-size:.85rem}
+.qb-subtask-check{width:16px;height:16px;border-radius:4px;border:2px solid var(--border);cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:.2s}
+.qb-subtask-check.checked{background:var(--success);border-color:var(--success)}
+.qb-subtask-check.checked::after{content:'\2713';color:#fff;font-size:.55rem}
+
+/* ===== EXPANDABLE TASK CARD ===== */
+.qb-task-expand{max-height:0;overflow:hidden;transition:max-height .35s ease,padding .35s ease;padding:0 14px}
+.qb-task-expand.open{max-height:800px;padding:14px;border-top:1px solid var(--border);margin-top:10px}
+.qb-expand-btn{background:none;border:none;color:var(--text3);cursor:pointer;font-size:.8rem;padding:4px 8px;transition:.15s;border-radius:4px}
+.qb-expand-btn:hover{background:var(--card-hover);color:var(--text)}
+.qb-expand-btn i{transition:transform .25s}
+.qb-task.expanded .qb-expand-btn i{transform:rotate(180deg)}
+
+/* ===== XP BADGE ON CARD ===== */
+.qb-xp-badge{display:inline-flex;align-items:center;gap:3px;padding:2px 8px;border-radius:12px;font-size:.72rem;font-weight:700;background:rgba(139,92,246,.15);color:var(--accent)}
+
+/* ===== ATTACHMENT IN EXPANDED CARD ===== */
+.qb-att-item{display:flex;align-items:center;gap:8px;padding:6px 10px;background:var(--bg);border-radius:6px;margin-bottom:4px;font-size:.82rem}
+.qb-att-item img{width:48px;height:48px;object-fit:cover;border-radius:4px}
+.qb-att-item audio{height:32px;flex:1}
+.qb-att-type{padding:2px 8px;border-radius:4px;font-size:.68rem;font-weight:600}
+.qb-att-type-voice{background:rgba(239,68,68,.15);color:var(--danger)}
+.qb-att-type-image{background:rgba(34,197,94,.15);color:var(--success)}
+
+/* ===== FILTER TABS (Chip-style) ===== */
+.qb-filter-tabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px}
+.qb-filter-tab{display:inline-flex;align-items:center;gap:5px;padding:6px 14px;border-radius:20px;font-size:.8rem;cursor:pointer;transition:.15s;border:1px solid var(--border);color:var(--text2);background:none;font-family:inherit;font-weight:500}
+.qb-filter-tab:hover{background:var(--card-hover);color:var(--text)}
+.qb-filter-tab.active{background:var(--accent-dim);border-color:var(--accent);color:var(--text);font-weight:600}
+.qb-filter-tab .qb-tab-count{background:var(--border);color:var(--text2);font-size:.68rem;padding:1px 6px;border-radius:10px;font-weight:700}
+.qb-filter-tab.active .qb-tab-count{background:var(--accent);color:#fff}
+
+/* ===== TIME PICKER ===== */
+.qb-time-picker{display:flex;align-items:center;gap:4px}
+.qb-time-picker .qb-time-field{display:flex;flex-direction:column;align-items:center;gap:2px}
+.qb-time-picker .qb-time-btn{background:var(--card-hover);border:1px solid var(--border);color:var(--text2);cursor:pointer;font-size:.7rem;width:28px;height:20px;border-radius:4px;display:flex;align-items:center;justify-content:center;transition:.15s;padding:0}
+.qb-time-picker .qb-time-btn:hover{background:var(--accent);color:#fff;border-color:var(--accent)}
+.qb-time-picker .qb-time-val{background:var(--bg);border:1px solid var(--border);color:var(--text);font-size:.95rem;font-weight:600;width:36px;height:32px;text-align:center;border-radius:6px;line-height:32px}
+.qb-time-sep{font-weight:700;color:var(--text2);font-size:1rem;margin:0 2px;padding-top:18px}
+.qb-ampm-toggle{display:flex;flex-direction:column;gap:2px;margin-left:4px}
+.qb-ampm-toggle button{background:var(--card-hover);border:1px solid var(--border);color:var(--text2);cursor:pointer;font-size:.65rem;font-weight:700;padding:3px 8px;border-radius:4px;transition:.15s}
+.qb-ampm-toggle button.active{background:var(--accent);color:#fff;border-color:var(--accent)}
+
+/* ===== PRIORITY XP LABEL ===== */
+.qb-pri-option{display:flex;align-items:center;justify-content:space-between;padding:8px 12px;cursor:pointer;transition:.12s;border-radius:6px}
+.qb-pri-option:hover{background:var(--card-hover)}
+.qb-pri-option.selected{background:var(--accent-dim)}
+.qb-pri-xp{font-size:.72rem;font-weight:700;padding:2px 8px;border-radius:10px}
+
+/* ===== MOOD BOARD ENHANCEMENTS ===== */
+.qb-resize-handle{opacity:0;transition:opacity .15s}
+.qb-mood-item:hover .qb-resize-handle,.qb-mood-item.selected .qb-resize-handle{opacity:1}
+.qb-mood-canvas.drag-over{outline:2px dashed var(--accent);outline-offset:-4px}
+.qb-mood-text-el{user-select:none}
+.qb-mood-text-el[contenteditable="true"]{user-select:text;cursor:text;outline:1px solid var(--accent);border-radius:4px;outline-offset:-1px}
+.qb-mood-sticky[contenteditable="true"]{outline:1px solid var(--accent);outline-offset:-1px;cursor:text}
+
+/* ===== CALENDAR DAY VIEW ENHANCED ===== */
+.qb-day-header{background:linear-gradient(135deg,rgba(139,92,246,.1),rgba(59,130,246,.06));border-color:transparent}
+.qb-day-slot:hover{background:var(--card-hover)}
+.qb-day-task-block{position:relative;padding:8px 12px;border-radius:6px;margin-bottom:3px;cursor:pointer;transition:.15s;color:var(--text);border-left:3px solid}
+.qb-day-task-block:hover{filter:brightness(1.15);transform:translateX(2px)}
+.qb-day-alltask{display:flex;align-items:center;gap:8px;padding:8px 12px;border-radius:6px;margin-bottom:4px;cursor:pointer;transition:.15s;border-left:3px solid}
+.qb-day-alltask:hover{background:var(--card-hover);transform:translateX(2px)}
+
+/* ===== DASHBOARD MINI TIMELINE ===== */
+.qb-mini-tl{max-height:280px;overflow-y:auto}
+.qb-mini-tl-slot{display:flex;gap:8px;padding:3px 0;font-size:.78rem;border-bottom:1px solid rgba(58,58,96,.2)}
+.qb-mini-tl-time{color:var(--text3);width:52px;flex-shrink:0;text-align:right;font-size:.7rem}
+.qb-mini-tl-task{padding:2px 8px;border-radius:4px;font-size:.72rem;cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1;min-width:0;border-left:2px solid}
+.qb-mini-tl-task:hover{filter:brightness(1.15)}
+
+/* ===== MOOD BOARD Z-ORDER FIX ===== */
+#moodItems{position:relative;z-index:2}
+
+/* ===== TASK SUMMARY OVERLAY (Calendar Day View) ===== */
+.qb-ts-overlay{position:fixed;inset:0;background:rgba(0,0,0,.6);backdrop-filter:blur(3px);z-index:200;display:none;align-items:center;justify-content:center;padding:20px}
+.qb-ts-overlay.show{display:flex}
+.qb-ts-card{background:var(--card);border:1px solid var(--border);border-radius:14px;max-width:520px;width:100%;max-height:85vh;overflow-y:auto;animation:modalIn .25s ease}
+.qb-ts-header{display:flex;align-items:flex-start;justify-content:space-between;padding:18px 22px;border-bottom:1px solid var(--border)}
+.qb-ts-title{font-size:1.05rem;font-weight:700;flex:1;padding-right:16px}
+.qb-ts-actions{display:flex;gap:6px;flex-shrink:0}
+.qb-ts-body{padding:18px 22px}
+.qb-ts-field{margin-bottom:12px}
+.qb-ts-label{font-size:.72rem;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:3px}
+.qb-ts-value{font-size:.88rem;color:var(--text)}
+.qb-ts-att{display:flex;align-items:center;gap:10px;padding:8px 12px;background:var(--bg);border-radius:8px;margin-bottom:6px}
+.qb-ts-att audio{flex:1;height:32px}
+.qb-ts-att img{width:56px;height:56px;object-fit:cover;border-radius:6px}
+
+@media(max-width:768px){
+  #sidebar{position:fixed;left:-240px;height:100vh;z-index:50}
+  #sidebar.mobile-open{left:0}
+  #sidebar.collapsed{left:-56px}
+  .qb-modal{max-width:95vw}
+}
+</style>
+</head>
+<body>
+<div id="loading-screen">
+  <div class="ld-icon">🎮</div>
+  <div class="ld-text">Loading QuestBoard...</div>
+</div>
+
+<div id="app" style="display:none">
+  <aside id="sidebar">
+    <div class="qb-sidebar-header">
+      <span class="qb-sidebar-title"><i class="fas fa-gamepad"></i> QuestBoard</span>
+      <button class="qb-toggle-btn" id="toggleSidebar" title="Toggle sidebar"><i class="fas fa-bars"></i></button>
+    </div>
+    <nav class="qb-nav" id="sidebarNav">
+      <button class="qb-nav-item active" data-view="dashboard"><span class="qb-nav-icon"><i class="fas fa-home"></i></span><span class="qb-nav-label">Dashboard</span></button>
+      <button class="qb-nav-item" data-view="tasks"><span class="qb-nav-icon"><i class="fas fa-tasks"></i></span><span class="qb-nav-label">Tasks</span></button>
+      <button class="qb-nav-item" data-view="calendar"><span class="qb-nav-icon"><i class="fas fa-calendar-alt"></i></span><span class="qb-nav-label">Calendar</span></button>
+      <button class="qb-nav-item" data-view="notes"><span class="qb-nav-icon"><i class="fas fa-sticky-note"></i></span><span class="qb-nav-label">Notes</span></button>
+      <button class="qb-nav-item" data-view="moodboard"><span class="qb-nav-icon"><i class="fas fa-palette"></i></span><span class="qb-nav-label">Mood Board</span></button>
+      <button class="qb-nav-item" data-view="analytics"><span class="qb-nav-icon"><i class="fas fa-chart-line"></i></span><span class="qb-nav-label">Analytics</span></button>
+      <button class="qb-nav-item" data-view="settings"><span class="qb-nav-icon"><i class="fas fa-cog"></i></span><span class="qb-nav-label">Settings</span></button>
+    </nav>
+    <div id="sidebarGamification" style="padding:14px;border-top:2px solid var(--border)"></div>
+  </aside>
+  <main id="main-content"><div class="qb-view" id="viewContainer"></div></main>
+</div>
+
+<div class="qb-modal-overlay" id="modalOverlay"><div class="qb-modal" id="modalContent"></div></div>
+<div class="qb-ctx" id="ctxMenu"></div>
+<div id="toast-container"></div>
+
+<script>
+// ==================== UTILITIES ====================
+const $ = s => document.querySelector(s);
+const $$ = s => [...document.querySelectorAll(s)];
+const uuid = () => crypto.randomUUID ? crypto.randomUUID() : 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g,c=>{const r=Math.random()*16|0;return(c==='x'?r:(r&0x3|0x8)).toString(16)});
+const today = () => new Date().toISOString().split('T')[0];
+const nowISO = () => new Date().toISOString();
+const debounce = (fn,ms) => { let t; return (...a) => { clearTimeout(t); t = setTimeout(()=>fn(...a),ms); }; };
+const fmtDate = d => { if(!d)return''; const dt=new Date(d); return dt.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}); };
+const fmtTime = t => { if(!t)return''; const[h,m]=t.split(':'); const hr=parseInt(h); return `${hr%12||12}:${m} ${hr>=12?'PM':'AM'}`; };
+const isToday = d => d && d.split('T')[0]===today();
+const isOverdue = d => d && !isToday(d) && new Date(d)<new Date(today());
+const clamp = (v,mn,mx) => Math.max(mn,Math.min(mx,v));
+const escHtml = t => { const d=document.createElement('div'); d.textContent=t; return d.innerHTML; };
+
+// ==================== INDEXEDDB ====================
+class DB {
+  constructor(){this.db=null}
+  async init(){
+    return new Promise((ok,no)=>{
+      const r=indexedDB.open('QuestBoardDB',2);
+      r.onupgradeneeded=e=>{
+        const db=e.target.result;
+        ['tasks','notes','moodBoardItems','gamification','analytics'].forEach(n=>{
+          if(!db.objectStoreNames.contains(n)){
+            const s=db.createObjectStore(n,{keyPath:'id'});
+            if(n==='tasks'){s.createIndex('completed','completed');s.createIndex('dueDate','dueDate');s.createIndex('category','category')}
+            if(n==='notes')s.createIndex('pinned','pinned');
+          }
+        });
+      };
+      r.onsuccess=e=>{this.db=e.target.result;ok()};
+      r.onerror=e=>no(e.target.error);
+    });
+  }
+  _tx(s,m='readonly'){return this.db.transaction(s,m).objectStore(s)}
+  async add(s,i){return new Promise((ok,no)=>{const r=this._tx(s,'readwrite').add(i);r.onsuccess=()=>ok(r.result);r.onerror=()=>no(r.error)})}
+  async get(s,id){return new Promise((ok,no)=>{const r=this._tx(s).get(id);r.onsuccess=()=>ok(r.result);r.onerror=()=>no(r.error)})}
+  async getAll(s){return new Promise((ok,no)=>{const r=this._tx(s).getAll();r.onsuccess=()=>ok(r.result||[]);r.onerror=()=>no(r.error)})}
+  async put(s,i){return new Promise((ok,no)=>{const r=this._tx(s,'readwrite').put(i);r.onsuccess=()=>ok(r.result);r.onerror=()=>no(r.error)})}
+  async del(s,id){return new Promise((ok,no)=>{const r=this._tx(s,'readwrite').delete(id);r.onsuccess=()=>ok();r.onerror=()=>no(r.error)})}
+  async clear(s){return new Promise((ok,no)=>{const r=this._tx(s,'readwrite').clear();r.onsuccess=()=>ok();r.onerror=()=>no(r.error)})}
+  async exportAll(){
+    const d={};
+    for(const s of['tasks','notes','moodBoardItems','gamification','analytics'])d[s]=await this.getAll(s);
+    d.settings=JSON.parse(localStorage.getItem('qb_settings')||'{}');
+    return d;
+  }
+  async importAll(d){
+    for(const s of['tasks','notes','moodBoardItems','gamification','analytics']){
+      if(d[s]){await this.clear(s);for(const i of d[s])await this.add(s,i)}
+    }
+    if(d.settings)localStorage.setItem('qb_settings',JSON.stringify(d.settings));
+  }
+}
+const db=new DB();
+
+// ==================== GAMIFICATION ====================
+const ACHS=[
+  {id:'first_task',name:'First Quest',desc:'Complete your first task',icon:'⭐'},
+  {id:'streak_7',name:'Week Warrior',desc:'7-day streak',icon:'🔥'},
+  {id:'tasks_100',name:'Centurion',desc:'Complete 100 tasks',icon:'💯'},
+  {id:'night_owl',name:'Night Owl',desc:'Complete a task after 11pm',icon:'🦉'},
+  {id:'early_bird',name:'Early Bird',desc:'Complete a task before 7am',icon:'🐦'},
+  {id:'project_master',name:'Project Master',desc:'Complete a project task',icon:'🏗️'},
+  {id:'streak_30',name:'Monthly Hero',desc:'30-day streak',icon:'⚡'},
+  {id:'high_energy',name:'Energy Master',desc:'10 high/critical energy tasks',icon:'💪'},
+  {id:'note_taker',name:'Scholar',desc:'Create 10 notes',icon:'📝'},
+  {id:'organized',name:'Organized Mind',desc:'Tag 20 tasks',icon:'🏷️'}
+];
+const TITLES=['Novice','Apprentice','Journeyman','Expert','Master','Grandmaster','Legend'];
+const TITLE_LV=[[1,2],[3,5],[6,10],[11,15],[16,20],[21,30],[31,Infinity]];
+const PETS={cat:{emoji:'🐱'},dog:{emoji:'🐶'},dragon:{emoji:'🐉'},phoenix:{emoji:'🔥'},robot:{emoji:'🤖'}};
+const EVOS=['Egg','Baby','Child','Teen','Adult','Legendary'];
+
+class GamEngine {
+  constructor(){
+    this.data=null;
+    this.settings=JSON.parse(localStorage.getItem('qb_settings')||'null')||{
+      mode:'rpg',showXP:true,showStreaks:true,showPet:true,showLevel:true,
+      soundEffects:false,confettiOnComplete:true,darkMode:true,achievementsEnabled:true
+    };
+  }
+  async load(){
+    let d=await db.get('gamification','main');
+    if(!d){
+      d={id:'main',mode:'rpg',
+        rpg:{level:1,totalXP:0,currentXP:0,xpToNext:100,title:'Novice',achievements:[],tasksCompleted:0,highEnergyCompleted:0,taggedTasks:0,notesCreated:0},
+        streak:{currentStreak:0,longestStreak:0,lastCompletedDate:null,pet:{name:'Buddy',type:'cat',level:0,happiness:50,evolution:0}},
+        settings:this.settings};
+      await db.add('gamification',d);
+    }
+    this.data=d;
+    this.settings={...this.settings,...d.settings};
+    this.settings.mode=d.mode;
+    this.saveSettings();
+  }
+  saveSettings(){localStorage.setItem('qb_settings',JSON.stringify(this.settings))}
+  async save(){if(this.data)await db.put('gamification',this.data)}
+  xpFor(e){return{low:10,medium:25,high:50,critical:75,boss:100}[e]||25}
+  titleFor(lv){for(let i=TITLE_LV.length-1;i>=0;i--)if(lv>=TITLE_LV[i][0])return TITLES[i];return'Novice'}
+  async awardXP(amt,el){
+    if(this.settings.mode==='zen')return;
+    if(this.settings.mode!=='rpg'&&this.settings.mode!=='streak')return;
+    const r=this.data.rpg;r.currentXP+=amt;r.totalXP+=amt;
+    while(r.currentXP>=r.xpToNext){r.currentXP-=r.xpToNext;r.level++;r.xpToNext=r.level*100;r.title=this.titleFor(r.level);showToast(`Level Up! Level ${r.level} - ${r.title}`,'success')}
+    if(el)showXPFloat(el,`+${amt} XP`);
+    await this.save();renderSidebarGam();
+  }
+  async completeTask(task){
+    const r=this.data.rpg;r.tasksCompleted++;
+    if(task.energyLevel==='high'||task.energyLevel==='critical')r.highEnergyCompleted++;
+    if(task.tags&&task.tags.length>0)r.taggedTasks++;
+    await this.awardXP(this.xpFor(task.energyLevel));
+    await this.checkAch(task);
+    if(this.settings.mode==='streak'||this.settings.showStreaks)await this.updateStreak();
+    if(this.settings.confettiOnComplete)showConfetti();
+  }
+  async updateStreak(){
+    const s=this.data.streak,td=today();
+    if(s.lastCompletedDate===td)return;
+    const yd=new Date();yd.setDate(yd.getDate()-1);const ys=yd.toISOString().split('T')[0];
+    if(s.lastCompletedDate===ys||!s.lastCompletedDate)s.currentStreak++;
+    else if(s.lastCompletedDate!==td)s.currentStreak=1;
+    s.lastCompletedDate=td;
+    if(s.currentStreak>s.longestStreak)s.longestStreak=s.currentStreak;
+    s.pet.happiness=clamp(s.currentStreak*5+30,0,100);
+    s.pet.level=Math.floor(s.currentStreak/7);
+    s.pet.evolution=s.currentStreak>=90?5:s.currentStreak>=60?4:s.currentStreak>=30?3:s.currentStreak>=14?2:s.currentStreak>=7?1:0;
+    await this.save();renderSidebarGam();
+  }
+  async checkAch(task){
+    if(!this.settings.achievementsEnabled)return;
+    const r=this.data.rpg,unlocked=r.achievements.map(a=>a.id),nw=[];
+    const chk=a=>{if(!unlocked.includes(a.id)){r.achievements.push({...a,unlockedAt:nowISO()});nw.push(a)}};
+    if(r.tasksCompleted>=1)chk(ACHS[0]);if(this.data.streak.currentStreak>=7)chk(ACHS[1]);if(r.tasksCompleted>=100)chk(ACHS[2]);
+    if(task){const h=new Date().getHours();if(h>=23||h<5)chk(ACHS[3]);if(h>=5&&h<7)chk(ACHS[4]);if(task.category==='project')chk(ACHS[5])}
+    if(this.data.streak.currentStreak>=30)chk(ACHS[6]);if(r.highEnergyCompleted>=10)chk(ACHS[7]);if(r.notesCreated>=10)chk(ACHS[8]);if(r.taggedTasks>=20)chk(ACHS[9]);
+    if(nw.length>0){await this.save();nw.forEach(showAchievement)}
+  }
+  async incNotes(){this.data.rpg.notesCreated++;await this.save()}
+}
+const gam=new GamEngine();
+
+// ==================== STATE ====================
+let S={
+  view:'dashboard',tasks:[],notes:[],moodItems:[],charts:[],
+  calDate:new Date(),calView:'month',selNoteId:null,
+  filters:{category:'all',energy:'all',status:'all',priority:'all',search:''},
+  sort:'dueDate',editTaskId:null,loaded:false,
+  mood:{tool:'select',zoom:1,panX:0,panY:0,sel:null,connecting:false,connFrom:null,connDragging:false,connSourceRect:null}
+};
+
+// ==================== UI HELPERS ====================
+function showToast(msg,type='info'){
+  const c=$('#toast-container'),t=document.createElement('div');
+  t.className=`qb-toast qb-toast-${type}`;
+  const ic={success:'check-circle',error:'exclamation-circle',info:'info-circle',warning:'exclamation-triangle'};
+  t.innerHTML=`<i class="fas fa-${ic[type]||'info-circle'}"></i> ${escHtml(msg)}`;
+  c.appendChild(t);setTimeout(()=>{if(t.parentNode)t.remove()},3000);
+}
+function showXPFloat(el,txt){
+  if(!el)return;const f=document.createElement('div');f.className='qb-xp-float';f.textContent=txt;
+  const r=el.getBoundingClientRect();f.style.left=r.left+r.width/2+'px';f.style.top=r.top+'px';
+  document.body.appendChild(f);setTimeout(()=>f.remove(),1400);
+}
+function showConfetti(){
+  const cols=['#8b5cf6','#3b82f6','#22c55e','#eab308','#ef4444','#ec4899'];
+  for(let i=0;i<35;i++){const p=document.createElement('div');p.className='qb-confetti';
+    p.style.left=Math.random()*100+'vw';p.style.top='-10px';p.style.background=cols[Math.floor(Math.random()*cols.length)];
+    p.style.borderRadius=Math.random()>.5?'50%':'2px';p.style.width=(4+Math.random()*7)+'px';p.style.height=(4+Math.random()*7)+'px';
+    p.style.animationDuration=(1.5+Math.random()*1.5)+'s';p.style.animationDelay=Math.random()*0.4+'s';
+    document.body.appendChild(p);setTimeout(()=>p.remove(),3000)}
+}
+function showAchievement(a){
+  const p=document.createElement('div');p.className='qb-achieve';
+  p.innerHTML=`<div style="font-size:2.8rem;margin-bottom:10px">${a.icon}</div><div style="font-size:.78rem;color:var(--warning);font-weight:700;margin-bottom:4px">ACHIEVEMENT UNLOCKED</div><div style="font-size:1.05rem;font-weight:700">${a.name}</div><div style="font-size:.82rem;color:var(--text2);margin-top:4px">${a.desc}</div>`;
+  document.body.appendChild(p);setTimeout(()=>p.remove(),3000);
+}
+function showModal(h){$('#modalContent').innerHTML=h;$('#modalOverlay').classList.add('show')}
+function closeModal(){$('#modalOverlay').classList.remove('show');$('#modalContent').innerHTML='';S.editTaskId=null}
+function showCtx(x,y,items){
+  const m=$('#ctxMenu');m.innerHTML=items.map(i=>`<div class="qb-ctx-item" data-action="${i.action}"><i class="fas fa-${i.icon}"></i> ${i.label}</div>`).join('');
+  m.style.left=x+'px';m.style.top=y+'px';m.style.display='block';
+}
+function hideCtx(){$('#ctxMenu').style.display='none'}
+
+// ==================== DATA LOADERS ====================
+async function loadAll(){S.tasks=await db.getAll('tasks');S.notes=await db.getAll('notes');S.moodItems=await db.getAll('moodBoardItems')}
+async function loadTasks(){S.tasks=await db.getAll('tasks')}
+async function loadNotes(){S.notes=await db.getAll('notes')}
+async function loadMood(){S.moodItems=await db.getAll('moodBoardItems')}
+
+// ==================== SIDEBAR GAMIFICATION ====================
+function renderSidebarGam(){
+  const el=$('#sidebarGamification');
+  if(!gam.data||gam.settings.mode==='zen'){el.innerHTML='';return}
+  const d=gam.data,s=gam.settings;
+  let h='';
+  if(s.showLevel)h+=`<div class="qb-level-badge"><i class="fas fa-shield-alt"></i> Lv.${d.rpg.level} ${d.rpg.title}</div>`;
+  if(s.showXP){const p=Math.round(d.rpg.currentXP/d.rpg.xpToNext*100);
+    h+=`<div class="qb-xp-bar-bg"><div class="qb-xp-bar-fill" style="width:${p}%"></div></div><div class="qb-xp-label"><span>${d.rpg.currentXP}/${d.rpg.xpToNext} XP</span><span>Total: ${d.rpg.totalXP}</span></div>`}
+  if(s.showStreaks)h+=`<div class="qb-streak"><i class="fas fa-fire"></i> ${d.streak.currentStreak} day streak</div>`;
+  if(s.showPet&&d.mode==='streak'){const pt=PETS[d.streak.pet.type]||PETS.cat;const ev=EVOS[d.streak.pet.evolution]||'Egg';
+    h+=`<div class="qb-pet"><span class="qb-pet-emoji">${pt.emoji}</span><div class="qb-pet-info"><div>${d.streak.pet.name} (${ev})</div><div class="qb-pet-bar"><div class="qb-pet-fill" style="width:${d.streak.pet.happiness}%"></div></div></div></div>`}
+  el.innerHTML=h;
+}
+
+// ==================== MINI TASK CARD ====================
+function miniTask(t){
+  const catL={work:'Work',daily:'Daily',project:'Project'}[t.category]||'Daily';
+  const xpVal={low:10,medium:25,high:50,critical:75,boss:100}[t.priority]||{low:10,medium:25,high:50,critical:75}[t.energyLevel]||25;
+  const ov=isOverdue(t.dueDate)&&!t.completed;
+  const atts=(t.attachments||[]);
+  const hasAtts=atts.length>0;
+  const hasDesc=!!(t.description&&t.description.trim());
+  const hasSubs=(t.subtasks&&t.subtasks.length>0);
+  const showTime=!!(t.startTime||t.endTime);
+  const showExpand=hasAtts||hasDesc||hasSubs||showTime;
+  let expandHtml='';
+  if(showExpand){
+    expandHtml=`<div class="qb-task-expand" id="expand-${t.id}">
+      ${showTime?`<div class="qb-mb-8"><span class="qb-text-xs qb-bold qb-text-dim" style="text-transform:uppercase;letter-spacing:.5px">Schedule</span><div class="qb-text-sm qb-text-muted qb-mt-4"><i class="fas fa-clock" style="font-size:.7rem"></i> ${fmtTime(t.startTime||'--:--')}${t.endTime?' - '+fmtTime(t.endTime):' - (no end time)'}</div></div>`:''}
+      ${hasDesc?`<div class="qb-mb-8"><span class="qb-text-xs qb-bold qb-text-dim" style="text-transform:uppercase;letter-spacing:.5px">Description</span><p class="qb-text-sm qb-text-muted qb-mt-4" style="white-space:pre-wrap">${escHtml(t.description)}</p></div>`:''}
+      ${hasSubs?`<div class="qb-mb-8"><span class="qb-text-xs qb-bold qb-text-dim" style="text-transform:uppercase;letter-spacing:.5px">Subtasks</span><div class="qb-mt-4">${t.subtasks.map(st=>`<div class="qb-subtask"><div class="qb-subtask-check${st.completed?' checked':''}" data-dash-sub="${t.id}" data-dash-sid="${st.id}"></div><span style="${st.completed?'text-decoration:line-through;opacity:.6':''}">${escHtml(st.title)}</span></div>`).join('')}</div></div>`:''}
+      ${hasAtts?`<div><span class="qb-text-xs qb-bold qb-text-dim" style="text-transform:uppercase;letter-spacing:.5px">Attachments</span><div class="qb-mt-4">${atts.map(a=>{
+        if(a.type==='voice'||(a.mimeType&&a.mimeType.startsWith('audio'))){
+          return `<div class="qb-att-item"><span class="qb-att-type qb-att-type-voice"><i class="fas fa-microphone"></i> Voice</span><audio controls src="${a.data}" preload="none" style="flex:1"></audio></div>`;
+        }else if(a.type==='image'||(a.mimeType&&a.mimeType.startsWith('image'))){
+          return `<div class="qb-att-item"><img src="${a.data}" alt="${escHtml(a.name||'Image')}"><span class="qb-text-xs qb-text-muted" style="flex:1">${escHtml(a.name||'Image')}</span></div>`;
+        }else{
+          return `<div class="qb-att-item"><i class="fas fa-file" style="color:var(--text3)"></i><span class="qb-text-xs qb-text-muted">${escHtml(a.name||'File')}</span></div>`;
+        }
+      }).join('')}</div></div>`:''}
+    </div>`;
+  }
+  return `<div class="qb-task qb-row qb-gap-8" data-id="${t.id}" style="flex-wrap:wrap">
+    <div class="qb-task-check${t.completed?' checked':''}" data-id="${t.id}"></div>
+    <div class="qb-flex-1" style="min-width:0">
+      <div class="qb-task-title qb-truncate">${escHtml(t.title)}</div>
+      <div class="qb-row qb-gap-8 qb-mt-4 qb-row-wrap">
+        <span class="qb-badge qb-badge-${t.category}">${catL}</span>
+        <span class="qb-badge qb-badge-${t.priority||'medium'}">${(t.priority||'medium').charAt(0).toUpperCase()+(t.priority||'medium').slice(1)}</span>
+        ${t.startTime?`<span class="qb-text-xs qb-text-dim"><i class="fas fa-clock" style="font-size:.6rem"></i> ${fmtTime(t.startTime)}${t.endTime?' - '+fmtTime(t.endTime):''}</span>`:''}
+        ${t.dueDate?`<span class="qb-text-xs" style="color:${ov?'var(--danger)':'var(--text3)'}">${ov?'Overdue: ':''}${fmtDate(t.dueDate)}</span>`:''}
+      </div>
+    </div>
+    <div class="qb-row qb-gap-4">
+      ${showExpand?`<button class="qb-expand-btn" data-dash-expand="${t.id}" title="Show details"><i class="fas fa-chevron-down"></i></button>`:''}
+      ${gam.settings.mode!=='zen'?`<span class="qb-xp-badge"><i class="fas fa-bolt"></i> ${xpVal} XP</span>`:''}
+    </div>
+    ${expandHtml}
+  </div>`;
+}
+
+// ==================== DASHBOARD VIEW ====================
+function renderDashboard(){
+  const td=today();
+  const todayT=S.tasks.filter(t=>!t.completed&&(t.dueDate===td||isOverdue(t.dueDate))).slice(0,8);
+  const compToday=S.tasks.filter(t=>t.completed&&t.completedAt&&t.completedAt.startsWith(td));
+  const totalTd=S.tasks.filter(t=>t.dueDate===td).length;
+  const rate=totalTd>0?Math.round(compToday.length/totalTd*100):0;
+  const msgs=["Time to conquer your quests!","Let's make today legendary!","Your adventure awaits!","Ready to level up?","Focus, grind, grow!","One task at a time, hero!"];
+  const g=new Date().getHours()<12?'Good morning':new Date().getHours()<18?'Good afternoon':'Good evening';
+  const d=gam.data;
+  let gW='';
+  if(d&&gam.settings.mode!=='zen'){
+    gW=`<div class="qb-card qb-stat-card"><div class="qb-stat-val">${d.streak.currentStreak}</div><div class="qb-stat-lbl"><i class="fas fa-fire" style="color:var(--warning)"></i> Day Streak</div></div>`;
+    if(gam.settings.showXP)gW+=`<div class="qb-card qb-stat-card"><div class="qb-stat-val">${d.rpg.level}</div><div class="qb-stat-lbl"><i class="fas fa-shield-alt" style="color:var(--accent)"></i> Level</div></div>`;
+  }
+  const recentN=S.notes.sort((a,b)=>new Date(b.updatedAt)-new Date(a.updatedAt)).slice(0,3);
+
+  const vc=$('#viewContainer');
+  vc.innerHTML=`<div class="qb-view">
+    <div class="qb-card qb-mb-12" style="background:linear-gradient(135deg,rgba(139,92,246,.12),rgba(59,130,246,.08));border-color:transparent">
+      <div class="qb-row qb-between">
+        <div><h1 style="font-size:1.4rem;font-weight:800">${g}, Adventurer!</h1><p class="qb-text-muted qb-text-sm qb-mt-4">${fmtDate(new Date())} — ${msgs[Math.floor(Math.random()*msgs.length)]}</p></div>
+        <div style="font-size:2.5rem">🎮</div>
+      </div>
+    </div>
+    <div class="qb-grid qb-grid-4 qb-mb-12" style="gap:12px">
+      <div class="qb-card qb-stat-card"><div class="qb-stat-val">${todayT.length}</div><div class="qb-stat-lbl"><i class="fas fa-clock" style="color:var(--warning)"></i> Due Today</div></div>
+      <div class="qb-card qb-stat-card"><div class="qb-stat-val">${rate}%</div><div class="qb-stat-lbl"><i class="fas fa-check-circle" style="color:var(--success)"></i> Today's Rate</div></div>
+      ${gW}
+    </div>
+    <div class="qb-row qb-gap-20 qb-mb-12" style="align-items:flex-start">
+      <div class="qb-flex-1">
+        <div class="qb-row qb-between qb-mb-8">
+          <h2 class="qb-text-lg qb-semibold">Today's Quests</h2>
+          <button class="qb-btn qb-btn-primary qb-btn-sm" id="dashAddBtn"><i class="fas fa-plus"></i> Quick Add</button>
+        </div>
+        <div id="dashAddForm" class="qb-hidden qb-card qb-mb-8 qb-p-12"><div class="qb-row qb-gap-8"><input type="text" class="qb-input qb-flex-1" id="dashInput" placeholder="What needs to be done?"><button class="qb-btn qb-btn-success qb-btn-sm" id="dashSave"><i class="fas fa-plus"></i></button><button class="qb-btn qb-btn-secondary qb-btn-sm" id="dashCancel">Cancel</button></div></div>
+        <div id="dashTasks">${todayT.length===0?'<p class="qb-text-muted qb-text-sm" style="padding:20px;text-align:center">No tasks due today. Enjoy! 🎉</p>':todayT.map(miniTask).join('')}</div>
+      </div>
+      <div style="width:280px" class="qb-shrink-0">
+        <h3 class="qb-text-sm qb-semibold qb-mb-8 qb-text-muted">This Month</h3>
+        <div class="qb-card" style="padding:10px" id="dashMiniCal">${miniCal(td)}</div>
+        <div class="qb-mt-8" id="dashDayTimeline"></div>
+        ${recentN.length>0?`<h3 class="qb-text-sm qb-semibold qb-mt-8 qb-mb-4 qb-text-muted">Recent Notes</h3>${recentN.map(n=>`<div class="qb-card qb-mb-4 qb-p-8" style="cursor:pointer" data-nav="notes" data-nid="${n.id}"><div class="qb-text-sm qb-semibold qb-truncate">${escHtml(n.title||'Untitled')}</div><div class="qb-text-xs qb-text-dim qb-mt-4">${fmtDate(n.updatedAt)}</div></div>`).join('')}`:''}
+      </div>
+    </div>
+  </div>`;
+
+  // Render daily timeline
+  function renderDashTimeline(selDate){
+    const ds=selDate||td;
+    const dStr=new Date(ds+'T12:00:00').toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'});
+    const dayTasks=S.tasks.filter(t=>t.dueDate===ds);
+    const timedTasks=dayTasks.filter(t=>t.startTime);
+    const colors={work:'#3b82f6',daily:'#22c55e',project:'#a855f7'};
+    let tlH=`<div class="qb-row qb-between qb-mb-4 qb-center"><span class="qb-text-xs qb-bold qb-text-muted">${dStr}</span><span class="qb-text-xs qb-text-dim">${dayTasks.length} task${dayTasks.length!==1?'s':''}</span></div>`;
+    if(dayTasks.length===0){
+      tlH+=`<div class="qb-text-xs qb-text-dim" style="text-align:center;padding:16px">No tasks scheduled</div>`;
+    }else{
+      tlH+=`<div class="qb-mini-tl">`;
+      for(let hr=7;hr<=21;hr++){
+        const slotTasks=timedTasks.filter(t=>parseInt(t.startTime)===hr);
+        tlH+=`<div class="qb-mini-tl-slot"><div class="qb-mini-tl-time">${formatHour(hr)}</div><div>`;
+        slotTasks.forEach(t=>{
+          tlH+=`<div class="qb-mini-tl-task" data-dtl-edit="${t.id}" style="background:${colors[t.category]||'#8b5cf6'}15;border-color:${colors[t.category]||'#8b5cf6'};${t.completed?'opacity:.5;text-decoration:line-through':''}">${escHtml(t.title)}</div>`;
+        });
+        tlH+=`</div></div>`;
+      }
+      // Show tasks without start time
+      const noTime=dayTasks.filter(t=>!t.startTime);
+      if(noTime.length>0){
+        tlH+=`<div class="qb-mini-tl-slot"><div class="qb-mini-tl-time" style="color:var(--text3)">No time</div><div>`;
+        noTime.forEach(t=>{
+          tlH+=`<div class="qb-mini-tl-task" data-dtl-edit="${t.id}" style="background:${colors[t.category]||'#8b5cf6'}15;border-color:${colors[t.category]||'#8b5cf6'};${t.completed?'opacity:.5;text-decoration:line-through':''}">${escHtml(t.title)}</div>`;
+        });
+        tlH+=`</div></div>`;
+      }
+      tlH+=`</div>`;
+    }
+    const tlEl=$('#dashDayTimeline');
+    if(tlEl){tlEl.innerHTML=tlH;
+      $$('.qb-mini-tl-task').forEach(el=>{el.onclick=e=>{e.stopPropagation();const task=S.tasks.find(t=>t.id===el.dataset.dtlEdit);if(task)openTaskModal(task.id)}});
+    }
+    // Update mini cal selection
+    const calEl=$('#dashMiniCal');
+    if(calEl){calEl.innerHTML=miniCal(ds);
+      $$('[data-mini-cal-date]').forEach(el=>{el.onclick=()=>{renderDashTimeline(el.dataset.miniCalDate)}});
+    }
+  }
+  renderDashTimeline(td);
+
+  // Bindings
+  const addBtn=$('#dashAddBtn');
+  if(addBtn)addBtn.onclick=()=>{$('#dashAddForm').classList.remove('qb-hidden');$('#dashInput').focus()};
+  const cancelBtn=$('#dashCancel');
+  if(cancelBtn)cancelBtn.onclick=()=>$('#dashAddForm').classList.add('qb-hidden');
+  const saveBtn=$('#dashSave');
+  if(saveBtn)saveBtn.onclick=async()=>{
+    const inp=$('#dashInput');if(!inp.value.trim())return;
+    const t={id:uuid(),title:inp.value.trim(),description:'',category:'daily',energyLevel:'medium',dueDate:td,startTime:null,endTime:null,completed:false,completedAt:null,createdAt:nowISO(),priority:'medium',tags:[],attachments:[],subtasks:[],recurrence:'none',xpEarned:0};
+    await db.add('tasks',t);await loadTasks();showToast('Task added!','success');renderDashboard();
+  };
+  $$('#dashTasks .qb-task-check').forEach(el=>{
+    el.onclick=async e=>{e.stopPropagation();const id=el.dataset.id;const task=S.tasks.find(t=>t.id===id);if(!task)return;
+      task.completed=true;task.completedAt=nowISO();await db.put('tasks',task);await gam.completeTask(task);await loadTasks();renderDashboard()};
+  });
+  // Expand/collapse dashboard tasks
+  $$('.qb-expand-btn[data-dash-expand]').forEach(el=>{
+    el.onclick=e=>{e.stopPropagation();
+      const id=el.dataset.dashExpand;
+      const card=document.querySelector(`#dashTasks .qb-task[data-id="${id}"]`);
+      const exp=document.getElementById('expand-'+id);
+      if(card&&exp){card.classList.toggle('expanded');exp.classList.toggle('open')}
+    };
+  });
+  // Dashboard subtask checks
+  $$('[data-dash-sub]').forEach(el=>{
+    el.onclick=async e=>{e.stopPropagation();
+      const tid=el.dataset.dashSub,sid=el.dataset.dashSid;
+      const t=S.tasks.find(x=>x.id===tid);if(!t)return;
+      const st=t.subtasks.find(s=>s.id===sid);if(!st)return;st.completed=!st.completed;
+      await db.put('tasks',t);await loadTasks();renderDashboard();
+    };
+  });
+  $$('.card[data-nav]').forEach(el=>{el.onclick=()=>{navigate(el.dataset.nav);if(el.dataset.nid)S.selNoteId=el.dataset.nid}});
+}
+
+function miniCal(selDate){
+  const now=new Date(),y=now.getFullYear(),m=now.getMonth();
+  const first=new Date(y,m,1),last=new Date(y,m+1,0);
+  const startDow=(first.getDay()+6)%7;
+  let h=`<div class="qb-cal-grid">`;
+  ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'].forEach(d=>h+=`<div class="qb-cal-head">${d}</div>`);
+  for(let i=0;i<startDow;i++){const d=new Date(y,m,1-startDow+i);h+=`<div class="qb-cal-day other">${d.getDate()}</div>`}
+  for(let d=1;d<=last.getDate();d++){
+    const ds=`${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    const isT=ds===today();
+    const dayTasks=S.tasks.filter(t=>t.dueDate===ds);
+    const hasTask=dayTasks.length>0;
+    const isSel=selDate===ds;
+    h+=`<div class="qb-cal-day${isT?' today':''}"${isSel?' style="background:var(--accent);color:#fff;font-weight:700"':''} data-mini-cal-date="${ds}">${d}${hasTask?'<span class="qb-cal-dot" style="background:var(--accent)"></span>':''}</div>`;
+  }
+  const rem=42-startDow-last.getDate();
+  for(let i=1;i<=rem;i++)h+=`<div class="qb-cal-day other">${i}</div>`;
+  h+=`</div>`;return h;
+}
+
+// ==================== TASKS VIEW ====================
+function renderTasks(){
+  let list=[...S.tasks];
+  const f=S.filters;
+  if(f.tab==='active')list=list.filter(t=>!t.completed);
+  else if(f.tab==='done')list=list.filter(t=>t.completed);
+  else if(f.tab==='work')list=list.filter(t=>t.category==='work');
+  else if(f.tab==='daily')list=list.filter(t=>t.category==='daily');
+  else if(f.tab==='project')list=list.filter(t=>t.category==='project');
+  if(f.priority!=='all')list=list.filter(t=>t.priority===f.priority);
+  if(f.search)list=list.filter(t=>t.title.toLowerCase().includes(f.search.toLowerCase())||t.description.toLowerCase().includes(f.search.toLowerCase()));
+  if(S.sort==='dueDate')list.sort((a,b)=>(a.dueDate||'z').localeCompare(b.dueDate||'z'));
+  if(S.sort==='priority')list.sort((a,b)=>({boss:0,urgent:1,high:2,medium:3,low:4}[a.priority]||3)-({boss:0,urgent:1,high:2,medium:3,low:4}[b.priority]||3));
+  if(S.sort==='energy')list.sort((a,b)=>({critical:0,high:1,medium:2,low:3}[a.energyLevel]||2)-({critical:0,high:1,medium:2,low:3}[b.energyLevel]||2));
+  if(S.sort==='name')list.sort((a,b)=>a.title.localeCompare(b.title));
+
+  const allTasks=S.tasks,active=allTasks.filter(t=>!t.completed),done=allTasks.filter(t=>t.completed);
+  const activeCount=active.length;
+  S.filters.tab=S.filters.tab||'all';
+
+  const vc=$('#viewContainer');
+  vc.innerHTML=`<div class="qb-view">
+    <div class="qb-row qb-between qb-mb-8">
+      <div>
+        <h2 class="qb-text-xl qb-bold"><i class="fas fa-scroll" style="color:var(--accent);margin-right:6px"></i>Quest Log</h2>
+        <p class="qb-text-sm qb-text-dim qb-mt-4">${activeCount} active quest${activeCount!==1?'s':''}  <i class="fas fa-star" style="color:var(--accent);font-size:.7rem"></i></p>
+      </div>
+      <button class="qb-btn qb-btn-primary" id="addTaskBtn"><i class="fas fa-plus"></i> New Quest</button>
+    </div>
+    <div class="qb-filter-tabs" id="filterTabs">
+      <button class="qb-filter-tab${S.filters.tab==='all'?' active':''}" data-tab="all">All <span class="qb-tab-count">${allTasks.length}</span></button>
+      <button class="qb-filter-tab${S.filters.tab==='active'?' active':''}" data-tab="active">Active <span class="qb-tab-count">${active.length}</span></button>
+      <button class="qb-filter-tab${S.filters.tab==='done'?' active':''}" data-tab="done">Done <span class="qb-tab-count">${done.length}</span></button>
+      <button class="qb-filter-tab${S.filters.tab==='work'?' active':''}" data-tab="work">Work <span class="qb-tab-count">${allTasks.filter(t=>t.category==='work').length}</span></button>
+      <button class="qb-filter-tab${S.filters.tab==='daily'?' active':''}" data-tab="daily">Daily <span class="qb-tab-count">${allTasks.filter(t=>t.category==='daily').length}</span></button>
+      <button class="qb-filter-tab${S.filters.tab==='project'?' active':''}" data-tab="project">Personal <span class="qb-tab-count">${allTasks.filter(t=>t.category==='project').length}</span></button>
+    </div>
+    <div class="qb-row qb-gap-8 qb-mb-8" style="flex-wrap:wrap">
+      <select class="qb-select" id="sortTasks" style="width:140px"><option value="dueDate" ${S.sort==='dueDate'?'selected':''}>Sort: Date</option><option value="priority" ${S.sort==='priority'?'selected':''}>Sort: Priority</option><option value="energy" ${S.sort==='energy'?'selected':''}>Sort: Energy</option><option value="name" ${S.sort==='name'?'selected':''}>Sort: Name</option></select>
+      <input type="text" class="qb-input" id="searchTasks" placeholder="Search quests..." style="flex:1;min-width:150px">
+    </div>
+    <div id="taskList">${list.length===0?'<p class="qb-text-muted qb-text-sm" style="padding:30px;text-align:center">No quests match your filters.</p>':list.map(t=>taskCard(t)).join('')}</div>
+  </div>`;
+
+  // Bind filter tabs
+  $$('.qb-filter-tab').forEach(btn=>{
+    btn.onclick=()=>{S.filters.tab=btn.dataset.tab;renderTasks()};
+  });
+  const sortEl=$('#sortTasks');if(sortEl)sortEl.onchange=()=>{S.sort=sortEl.value;renderTasks()};
+  const searchEl=$('#searchTasks');if(searchEl)searchEl.oninput=debounce(()=>{S.filters.search=searchEl.value;renderTasks()},300);
+  const addBtn=$('#addTaskBtn');if(addBtn)addBtn.onclick=()=>openTaskModal();
+  bindTaskEvents();
+}
+
+function taskCard(t){
+  const catL={work:'Work',daily:'Daily',project:'Project'}[t.category]||'Daily';
+  const xpVal={low:10,medium:25,high:50,critical:75,boss:100}[t.priority]||{low:10,medium:25,high:50,critical:75}[t.energyLevel]||25;
+  const xpClr={low:'var(--success)',medium:'var(--accent2)',high:'var(--warning)',critical:'var(--danger)',boss:'var(--danger)'};
+  const ov=isOverdue(t.dueDate)&&!t.completed;
+  const priLbl={low:'Low',medium:'Medium',high:'High',critical:'Critical',boss:'BOSS'};
+  const atts=(t.attachments||[]);
+  const hasAtts=atts.length>0;
+  const hasDesc=!!(t.description&&t.description.trim());
+  const hasSubs=(t.subtasks&&t.subtasks.length>0);
+  const showTime=!!(t.startTime||t.endTime);
+  const showExpand=hasAtts||hasDesc||hasSubs||showTime;
+
+  let expandHtml='';
+  if(showExpand){
+    expandHtml=`<div class="qb-task-expand" id="expand-${t.id}">
+      ${showTime?`<div class="qb-mb-8"><span class="qb-text-xs qb-bold qb-text-dim" style="text-transform:uppercase;letter-spacing:.5px">Schedule</span><div class="qb-text-sm qb-text-muted qb-mt-4"><i class="fas fa-clock" style="font-size:.7rem"></i> ${fmtTime(t.startTime||'--:--')}${t.endTime?' - '+fmtTime(t.endTime):' - (no end time)'}</div></div>`:''}
+      ${hasDesc?`<div class="qb-mb-8"><span class="qb-text-xs qb-bold qb-text-dim" style="text-transform:uppercase;letter-spacing:.5px">Description</span><p class="qb-text-sm qb-text-muted qb-mt-4" style="white-space:pre-wrap">${escHtml(t.description)}</p></div>`:''}
+      ${hasSubs?`<div class="qb-mb-8"><span class="qb-text-xs qb-bold qb-text-dim" style="text-transform:uppercase;letter-spacing:.5px">Subtasks</span><div class="qb-mt-4">${t.subtasks.map(st=>`<div class="qb-subtask"><div class="qb-subtask-check${st.completed?' checked':''}" data-task="${t.id}" data-sub="${st.id}"></div><span style="${st.completed?'text-decoration:line-through;opacity:.6':''}">${escHtml(st.title)}</span></div>`).join('')}</div></div>`:''}
+      ${hasAtts?`<div><span class="qb-text-xs qb-bold qb-text-dim" style="text-transform:uppercase;letter-spacing:.5px">Attachments</span><div class="qb-mt-4">${atts.map(a=>{
+        if(a.type==='voice'||a.mimeType&&a.mimeType.startsWith('audio')){
+          return `<div class="qb-att-item"><span class="qb-att-type qb-att-type-voice"><i class="fas fa-microphone"></i> Voice</span><audio controls src="${a.data}" preload="none" style="flex:1"></audio></div>`;
+        }else if(a.type==='image'||a.mimeType&&a.mimeType.startsWith('image')){
+          return `<div class="qb-att-item"><img src="${a.data}" alt="${escHtml(a.name||'Image')}"><span class="qb-text-xs qb-text-muted" style="flex:1">${escHtml(a.name||'Image')}</span></div>`;
+        }else{
+          return `<div class="qb-att-item"><i class="fas fa-file" style="color:var(--text3)"></i><span class="qb-text-xs qb-text-muted">${escHtml(a.name||'File')}</span></div>`;
+        }
+      }).join('')}</div></div>`:''}
+    </div>`;
+  }
+
+  return `<div class="qb-task${t.completed?' done':''}" data-id="${t.id}">
+    <div class="qb-row qb-gap-8">
+      <div class="qb-task-check${t.completed?' checked':''}" data-id="${t.id}"></div>
+      <div class="qb-flex-1" style="min-width:0">
+        <div class="qb-row qb-between" style="gap:6px">
+          <div class="qb-task-title ${t.completed?'':'qb-truncate'}" style="flex:1">${escHtml(t.title)}</div>
+          ${gam.settings.mode!=='zen'?`<span class="qb-xp-badge" style="${t.priority==='boss'?'background:rgba(239,68,68,.2);color:var(--danger)':''}"><i class="fas fa-bolt"></i> ${xpVal} XP</span>`:''}
+        </div>
+        <div class="qb-row qb-gap-8 qb-mt-4 qb-row-wrap">
+          <span class="qb-badge qb-badge-${t.category}">${catL}</span>
+          <span class="qb-badge" style="background:${xpClr[t.priority]||xpClr.medium}22;color:${xpClr[t.priority]||xpClr.medium}">${priLbl[t.priority]||'Medium'}</span>
+          ${t.dueDate?`<span class="qb-text-xs qb-row qb-gap-4" style="color:${ov?'var(--danger)':'var(--text3)'}"><i class="fas fa-calendar-alt" style="font-size:.65rem"></i>${ov?' Overdue: ':''}${fmtDate(t.dueDate)}</span>`:''}
+          ${(t.tags||[]).slice(0,2).map(tg=>`<span class="qb-tag">${escHtml(tg)}</span>`).join('')}
+        </div>
+      </div>
+      <div class="qb-row qb-gap-4">
+        ${showExpand?`<button class="qb-expand-btn" data-expand="${t.id}" title="Show details"><i class="fas fa-chevron-down"></i></button>`:''}
+        <button class="qb-btn-icon qb-edit-task" data-id="${t.id}" title="Edit"><i class="fas fa-pen"></i></button>
+        <button class="qb-btn-icon qb-del-task" data-id="${t.id}" title="Delete" style="border-color:var(--danger);color:var(--danger)"><i class="fas fa-trash"></i></button>
+      </div>
+    </div>
+    ${expandHtml}
+  </div>`;
+}
+
+function bindTaskEvents(){
+  $$('#taskList .qb-task-check').forEach(el=>{
+    el.onclick=async e=>{e.stopPropagation();const id=el.dataset.id;const t=S.tasks.find(x=>x.id===id);if(!t)return;
+      t.completed=!t.completed;t.completedAt=t.completed?nowISO():null;await db.put('tasks',t);
+      if(t.completed){t.xpEarned=gam.xpFor(t.priority==='boss'?'boss':t.energyLevel);await gam.completeTask(t)}await loadTasks();renderTasks()};
+  });
+  $$('#taskList .qb-subtask-check').forEach(el=>{
+    el.onclick=async e=>{e.stopPropagation();const tid=el.dataset.task,sid=el.dataset.sub;
+      const t=S.tasks.find(x=>x.id===tid);if(!t)return;
+      const st=t.subtasks.find(s=>s.id===sid);if(!st)return;st.completed=!st.completed;
+      await db.put('tasks',t);await loadTasks();renderTasks()};
+  });
+  $$('.qb-edit-task').forEach(el=>{el.onclick=async e=>{e.stopPropagation();openTaskModal(el.dataset.id)}});
+  $$('.qb-del-task').forEach(el=>{el.onclick=async e=>{e.stopPropagation();if(!confirm('Delete this quest?'))return;await db.del('tasks',el.dataset.id);await loadTasks();showToast('Quest deleted','info');renderTasks()}});
+  $$('.qb-expand-btn').forEach(el=>{
+    el.onclick=e=>{e.stopPropagation();
+      const id=el.dataset.expand;
+      const card=document.querySelector(`.qb-task[data-id="${id}"]`);
+      const exp=document.getElementById('expand-'+id);
+      if(card&&exp){card.classList.toggle('expanded');exp.classList.toggle('open')}
+    };
+  });
+}
+
+function openTaskModal(editId){
+  const t=editId?S.tasks.find(x=>x.id===editId):null;
+  S.editTaskId=editId||null;
+  const now=new Date();
+  const td=today();
+  const defDate=t&&t.dueDate?t.dueDate.split('T')[0]:td;
+  const defStartH=t&&t.startTime?parseInt(t.startTime.split(':')[0]):now.getHours();
+  const defStartM=t&&t.startTime?parseInt(t.startTime.split(':')[1]):now.getMinutes();
+  const defEndH=t&&t.endTime?parseInt(t.endTime.split(':')[0]):(now.getHours()+1)%24;
+  const defEndM=t&&t.endTime?parseInt(t.endTime.split(':')[1]):now.getMinutes();
+  const selPri=t?t.priority:'medium';
+  const priList=[
+    {v:'low',l:'Low',xp:10,c:'var(--success)'},
+    {v:'medium',l:'Medium',xp:25,c:'var(--accent2)'},
+    {v:'high',l:'High',xp:50,c:'var(--warning)'},
+    {v:'critical',l:'Critical',xp:75,c:'var(--danger)'},
+    {v:'boss',l:'BOSS',xp:100,c:'var(--danger)'}
+  ];
+
+  function timePickerHTML(fieldId,h,m){
+    const h12=h%12||12;
+    const ampm=h<12?'AM':'PM';
+    const hStr=String(h12).padStart(2,'0');
+    const mStr=String(m).padStart(2,'0');
+    return `<div class="qb-time-picker" id="tp-${fieldId}" data-h="${h}" data-m="${m}">
+      <div class="qb-time-field"><button class="qb-time-btn" data-tp="${fieldId}" data-dir="hup"><i class="fas fa-chevron-up"></i></button><div class="qb-time-val" data-tpv="${fieldId}-h">${hStr}</div><button class="qb-time-btn" data-tp="${fieldId}" data-dir="hdn"><i class="fas fa-chevron-down"></i></button></div>
+      <div class="qb-time-sep">:</div>
+      <div class="qb-time-field"><button class="qb-time-btn" data-tp="${fieldId}" data-dir="mup"><i class="fas fa-chevron-up"></i></button><div class="qb-time-val" data-tpv="${fieldId}-m">${mStr}</div><button class="qb-time-btn" data-tp="${fieldId}" data-dir="mdn"><i class="fas fa-chevron-down"></i></button></div>
+      <div class="qb-ampm-toggle"><button class="${ampm==='AM'?'active':''}" data-tp="${fieldId}" data-dir="ampm">${ampm}</button></div>
+    </div>`;
+  }
+
+  showModal(`<div class="qb-modal-header"><span class="qb-modal-title">${t?'Edit Quest':'New Quest'}</span><button class="qb-modal-close" id="closeModal"><i class="fas fa-times"></i></button></div>
+    <div class="qb-modal-body">
+      <div class="qb-form-group"><label class="qb-label">Quest Title</label><input type="text" class="qb-input" id="mtTitle" value="${escHtml(t?t.title:'')}" placeholder="What needs to be done?"></div>
+      <div class="qb-form-group"><label class="qb-label">Description</label><textarea class="qb-textarea" id="mtDesc" placeholder="Optional details...">${escHtml(t?t.description:'')}</textarea></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+        <div class="qb-form-group"><label class="qb-label">Category</label><select class="qb-select" id="mtCat"><option value="work"${t&&t.category==='work'?' selected':''}>Work</option><option value="daily"${(!t||t.category==='daily')?' selected':''}>Daily Habits</option><option value="project"${t&&t.category==='project'?' selected':''}>Personal Project</option></select></div>
+        <div class="qb-form-group"><label class="qb-label">Energy Level</label><select class="qb-select" id="mtEnergy"><option value="low"${t&&t.energyLevel==='low'?' selected':''}>Low</option><option value="medium"${(!t||t.energyLevel==='medium')?' selected':''}>Medium</option><option value="high"${t&&t.energyLevel==='high'?' selected':''}>High</option><option value="critical"${t&&t.energyLevel==='critical'?' selected':''}>Critical</option></select></div>
+      </div>
+      <div class="qb-form-group"><label class="qb-label"><i class="fas fa-calendar-alt" style="color:var(--accent);margin-right:4px"></i>Due Date</label><input type="date" class="qb-input" id="mtDate" value="${defDate}" style="cursor:pointer"></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+        <div class="qb-form-group"><label class="qb-label">Start Time</label>${timePickerHTML('start',defStartH,defStartM)}</div>
+        <div class="qb-form-group"><label class="qb-label">End Time</label>${timePickerHTML('end',defEndH,defEndM)}</div>
+      </div>
+      <div class="qb-form-group"><label class="qb-label">Priority</label>
+        <div class="qb-card" style="padding:4px" id="mtPriGroup">${priList.map(p=>`<div class="qb-pri-option${selPri===p.v?' selected':''}" data-pri="${p.v}"><span style="font-weight:600;color:${p.c}">${p.l}</span><span class="qb-pri-xp" style="background:${p.c}22;color:${p.c}">+${p.xp} XP</span></div>`).join('')}</div>
+      </div>
+      <div class="qb-form-group"><label class="qb-label">Tags (comma separated)</label><input type="text" class="qb-input" id="mtTags" value="${(t&&t.tags?t.tags.join(', '):'')}"></div>
+      <div class="qb-form-group"><label class="qb-label">Recurrence</label><select class="qb-select" id="mtRec"><option value="none"${t&&t.recurrence==='none'?' selected':''}>None</option><option value="daily"${t&&t.recurrence==='daily'?' selected':''}>Daily</option><option value="weekly"${t&&t.recurrence==='weekly'?' selected':''}>Weekly</option><option value="monthly"${t&&t.recurrence==='monthly'?' selected':''}>Monthly</option></select></div>
+      <div class="qb-form-group">
+        <label class="qb-label">Attachments (Images)</label>
+        <input type="file" id="mtFiles" accept="image/*" multiple style="font-size:.85rem;color:var(--text2)">
+      </div>
+      <div class="qb-form-group">
+        <div class="qb-row qb-gap-8">
+          <button class="qb-btn qb-btn-secondary qb-btn-sm" id="mtVoiceBtn"><i class="fas fa-microphone"></i> Voice Memo</button>
+          <span id="mtVoiceStatus" class="qb-text-xs qb-text-dim"></span>
+        </div>
+      </div>
+      <div class="qb-form-group"><label class="qb-label">Subtasks</label><div id="mtSubtasks">${(t&&t.subtasks?t.subtasks:[]).map(s=>`<div class="qb-subtask"><input type="text" class="qb-input" value="${escHtml(s.title)}" style="width:auto;flex:1" data-sub-id="${s.id}"><button class="qb-btn-icon qb-rm-sub" style="width:28px;height:28px" data-sub-id="${s.id}"><i class="fas fa-times" style="font-size:.7rem"></i></button></div>`).join('')}<button class="qb-btn qb-btn-secondary qb-btn-sm qb-mt-4" id="mtAddSub"><i class="fas fa-plus"></i> Add Subtask</button></div>
+    </div>
+    <div class="qb-modal-footer"><button class="qb-btn qb-btn-secondary" id="cancelModal">Cancel</button><button class="qb-btn qb-btn-primary" id="saveTask">Save Quest</button></div>`);
+
+  $('#closeModal').onclick=closeModal;
+  $('#cancelModal').onclick=closeModal;
+  $('#mtAddSub').onclick=()=>{
+    const c=$('#mtSubtasks');const id=uuid();
+    c.insertAdjacentHTML('beforeend',`<div class="qb-subtask qb-mt-4"><input type="text" class="qb-input" placeholder="Subtask..." style="width:auto;flex:1" data-sub-id="${id}"><button class="qb-btn-icon qb-rm-sub" style="width:28px;height:28px" data-sub-id="${id}"><i class="fas fa-times" style="font-size:.7rem"></i></button></div>`);
+    $$('.qb-rm-sub').forEach(b=>b.onclick=()=>b.parentElement.remove());
+  };
+  $$('.qb-rm-sub').forEach(b=>b.onclick=()=>b.parentElement.remove());
+
+  // Priority selector
+  let selectedPri=selPri;
+  $$('.qb-pri-option').forEach(opt=>{
+    opt.onclick=()=>{
+      $$('.qb-pri-option').forEach(o=>o.classList.remove('selected'));
+      opt.classList.add('selected');
+      selectedPri=opt.dataset.pri;
+    };
+  });
+
+  // Time picker controls
+  function getTimeVal(fieldId){
+    const el=document.getElementById('tp-'+fieldId);
+    if(!el)return{h:0,m:0};
+    return{h:parseInt(el.dataset.h)||0,m:parseInt(el.dataset.m)||0};
+  }
+  function setTimeVal(fieldId,h,m){
+    const el=document.getElementById('tp-'+fieldId);
+    if(!el)return;
+    el.dataset.h=h;el.dataset.m=m;
+    const h12=h%12||12;
+    const hStr=String(h12).padStart(2,'0');
+    const mStr=String(m).padStart(2,'0');
+    const hvEl=document.querySelector('[data-tpv="'+fieldId+'-h"]');
+    const mvEl=document.querySelector('[data-tpv="'+fieldId+'-m"]');
+    if(hvEl)hvEl.textContent=hStr;
+    if(mvEl)mvEl.textContent=mStr;
+    const ampmBtn=el.querySelector('[data-dir="ampm"]');
+    if(ampmBtn){ampmBtn.textContent=h<12?'AM':'PM';ampmBtn.classList.toggle('active',true)}
+  }
+  $$('.qb-time-btn').forEach(btn=>{
+    btn.onclick=()=>{
+      const fieldId=btn.dataset.tp;
+      const dir=btn.dataset.dir;
+      const tv=getTimeVal(fieldId);
+      let h=tv.h,m=tv.m;
+      if(dir==='hup')h=(h+1)%24;
+      else if(dir==='hdn')h=(h+23)%24;
+      else if(dir==='mup')m=(m+5)%60;
+      else if(dir==='mdn')m=(m+55)%60;
+      else if(dir==='ampm')h=(h+12)%24;
+      setTimeVal(fieldId,h,m);
+    };
+  });
+
+  // Voice memo
+  let mediaRec=null,voiceChunks=[],voiceTimer=null;
+  $('#mtVoiceBtn').onclick=async()=>{
+    if(mediaRec&&mediaRec.state==='recording'){
+      mediaRec.stop();clearInterval(voiceTimer);$('#mtVoiceStatus').textContent='Processing...';
+    }else{
+      try{
+        const stream=await navigator.mediaDevices.getUserMedia({audio:true});
+        mediaRec=new MediaRecorder(stream);voiceChunks=[];
+        mediaRec.ondataavailable=e=>{if(e.data.size>0)voiceChunks.push(e.data)};
+        mediaRec.onstop=async()=>{
+          stream.getTracks().forEach(t=>t.stop());
+          const blob=new Blob(voiceChunks,{type:'audio/webm'});
+          const reader=new FileReader();
+          reader.onload=()=>{
+            attData.push({id:uuid(),type:'voice',name:'Voice Memo',data:reader.result,mimeType:'audio/webm'});
+            $('#mtVoiceStatus').textContent='Voice memo recorded ✓';
+          };
+          reader.readAsDataURL(blob);
+          // Try speech recognition
+          if('webkitSpeechRecognition' in window||'SpeechRecognition' in window){
+            try{const sr=new(window.SpeechRecognition||window.webkitSpeechRecognition)();sr.lang='en-US';sr.maxAlternatives=1;
+              sr.onresult=e=>{const txt=e.results[0][0].transcript;$('#mtVoiceStatus').innerHTML=`Voice: "${escHtml(txt)}"`;
+                const dates=txt.match(/\b(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)\w*\s+\d{1,2}(?:st|nd|rd|th)?(?:,?\s+\d{4})?\b|\b\d{1,2}\/\d{1,2}\/\d{2,4}\b/gi);
+                if(dates)$('#mtVoiceStatus').innerHTML+=` <span style="color:var(--warning)">📅 Detected date: ${dates[0]}</span>`;
+              };sr.onerror=()=>{};sr.start()}catch(e){}
+          }
+        };
+        mediaRec.start();let sec=0;$('#mtVoiceStatus').innerHTML='<span class="qb-rec"><span class="qb-rec-dot"></span> Recording...</span>';
+        voiceTimer=setInterval(()=>{sec++;$('#mtVoiceStatus').innerHTML=`<span class="qb-rec"><span class="qb-rec-dot"></span> Recording ${Math.floor(sec/60)}:${String(sec%60).padStart(2,'0')}</span>`},1000);
+      }catch(e){showToast('Microphone access denied','error')}
+    }
+  };
+
+  // File attachments
+  const attData=[];
+  $('#mtFiles').onchange=e=>{for(const f of e.target.files){
+    const reader=new FileReader();reader.onload=()=>{attData.push({id:uuid(),type:'image',name:f.name,data:reader.result,mimeType:f.type});showToast(`Attached: ${f.name}`,'success')};reader.readAsDataURL(f);
+  }};
+
+  $('#saveTask').onclick=async()=>{
+    const title=$('#mtTitle').value.trim();if(!title){showToast('Title required','error');return}
+    const stv=getTimeVal('start');
+    const etv=getTimeVal('end');
+    const startTimeStr=String(stv.h).padStart(2,'0')+':'+String(stv.m).padStart(2,'0');
+    const endTimeStr=String(etv.h).padStart(2,'0')+':'+String(etv.m).padStart(2,'0');
+    const taskData={
+      id:t?t.id:uuid(),title,description:$('#mtDesc').value,
+      category:$('#mtCat').value,energyLevel:$('#mtEnergy').value,
+      dueDate:$('#mtDate').value||null,startTime:startTimeStr,endTime:endTimeStr,
+      completed:t?t.completed:false,completedAt:t?t.completedAt:null,createdAt:t?t.createdAt:nowISO(),
+      priority:selectedPri,
+      tags:$('#mtTags').value.split(',').map(x=>x.trim()).filter(Boolean),
+      attachments:[...(t&&t.attachments?t.attachments:[]),...attData],
+      subtasks:[...(t&&t.subtasks?t.subtasks:[]),
+        ...$$('#mtSubtasks .qb-subtask').map(el=>({id:el.querySelector('input').dataset.subId,title:el.querySelector('input').value.trim()||'Untitled',completed:false}))],
+      recurrence:$('#mtRec').value,xpEarned:t?t.xpEarned:0
+    };
+    if(t)await db.put('tasks',taskData);else await db.add('tasks',taskData);
+    await loadTasks();closeModal();showToast(t?'Quest updated':'Quest created!','success');renderTasks();
+  };
+}
+
+// ==================== CALENDAR VIEW ====================
+function renderCalendar(){
+  const vc=$('#viewContainer');
+  const y=S.calDate.getFullYear(),m=S.calDate.getMonth();
+  const mNames=['January','February','March','April','May','June','July','August','September','October','November','December'];
+  vc.innerHTML=`<div class="qb-view">
+    <div class="qb-row qb-between qb-mb-8">
+      <h2 class="qb-text-xl qb-bold">Calendar</h2>
+      <div class="qb-row qb-gap-8">
+        <button class="qb-btn qb-btn-secondary qb-btn-sm" id="calToday" style="font-size:.78rem"><i class="fas fa-crosshairs"></i> Today</button>
+        <div class="qb-row qb-gap-4">
+          <button class="qb-btn-icon" id="calPrev"><i class="fas fa-chevron-left"></i></button>
+          <span class="qb-semibold" id="calLabel">${mNames[m]} ${y}</span>
+          <button class="qb-btn-icon" id="calNext"><i class="fas fa-chevron-right"></i></button>
+        </div>
+        <div class="qb-row qb-gap-4">
+          <button class="qb-chip${S.calView==='month'?' active':''}" id="calMonth">Month</button>
+          <button class="qb-chip${S.calView==='week'?' active':''}" id="calWeek">Week</button>
+          <button class="qb-chip${S.calView==='day'?' active':''}" id="calDay">Day</button>
+        </div>
+      </div>
+    </div>
+    <div id="calContent"></div>
+  </div>`;
+
+  const render=()=>{
+    if(S.calView==='month')renderMonthView();
+    else if(S.calView==='week')renderWeekView();
+    else renderDayView();
+    if(S.calView==='day'){
+      const d=S.calDate;
+      const dStr=d.toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric',year:'numeric'});
+      $('#calLabel').textContent=dStr;
+    }else{
+      $('#calLabel').textContent=mNames[S.calDate.getMonth()]+' '+S.calDate.getFullYear();
+    }
+  };
+
+  $('#calToday').onclick=()=>{S.calDate=new Date();render()};
+  $('#calPrev').onclick=()=>{S.calView==='month'?S.calDate.setMonth(S.calDate.getMonth()-1):S.calView==='week'?S.calDate.setDate(S.calDate.getDate()-7):S.calDate.setDate(S.calDate.getDate()-1);render()};
+  $('#calNext').onclick=()=>{S.calView==='month'?S.calDate.setMonth(S.calDate.getMonth()+1):S.calView==='week'?S.calDate.setDate(S.calDate.getDate()+7):S.calDate.setDate(S.calDate.getDate()+1);render()};
+  $('#calMonth').onclick=()=>{S.calView='month';render()};
+  $('#calWeek').onclick=()=>{S.calView='week';render()};
+  $('#calDay').onclick=()=>{S.calView='day';render()};
+  render();
+}
+
+function renderMonthView(){
+  const y=S.calDate.getFullYear(),m=S.calDate.getMonth();
+  const first=new Date(y,m,1),last=new Date(y,m+1,0),startDow=(first.getDay()+6)%7;
+  const colors={work:'#3b82f6',daily:'#22c55e',project:'#a855f7'};
+  let h=`<div class="qb-cal-grid" style="gap:1px">`;
+  ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'].forEach(d=>h+=`<div class="qb-cal-head">${d}</div>`);
+  for(let i=0;i<startDow;i++){const d=new Date(y,m,1-startDow+i);h+=`<div class="qb-cal-day other">${d.getDate()}</div>`}
+  for(let d=1;d<=last.getDate();d++){
+    const ds=`${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    const isT=ds===today();
+    const dayTasks=S.tasks.filter(t=>t.dueDate===ds);
+    h+=`<div class="qb-cal-day${isT?' today':''}" data-date="${ds}" style="font-weight:${isT?'700':'400'}">${d}<div style="margin-top:2px">${dayTasks.slice(0,3).map(t=>`<span class="qb-cal-dot" style="background:${colors[t.category]||'#8b5cf6'}"></span>`).join('')}${dayTasks.length>3?`<span class="qb-text-xs" style="color:var(--text3)">+${dayTasks.length-3}</span>`:''}</div></div>`;
+  }
+  const rem=(7-startDow-last.getDate()%7)%7||7;
+  for(let i=1;i<=rem;i++)h+=`<div class="qb-cal-day other">${i}</div>`;
+  h+=`</div>`;
+  $('#calContent').innerHTML=h;
+  $$('.qb-cal-day:not(.other)').forEach(el=>{
+    el.onclick=()=>{
+      const ds=el.dataset.date;
+      const dayTasks=S.tasks.filter(t=>t.dueDate===ds);
+      if(dayTasks.length>0){
+        showCtx(event.clientX,event.clientY,[...dayTasks.slice(0,5).map(t=>({action:'edit',icon:'pen',label:t.title})),{action:'add',icon:'plus',label:'Add task here'}]);
+        $$('.qb-ctx-item').forEach(ci=>{
+          ci.onclick=()=>{hideCtx();if(ci.dataset.action==='add'){openTaskModal();setTimeout(()=>$('#mtDate').value=ds,50)}else{const task=dayTasks.find(t=>t.title===ci.textContent.trim());if(task)openTaskModal(task.id)}};
+        });
+      }else{
+        openTaskModal();setTimeout(()=>$('#mtDate').value=ds,50);
+      }
+    };
+    // Drag & drop target
+    el.ondragover=e=>{e.preventDefault();el.style.background='var(--accent-dim)'};
+    el.ondragleave=()=>{el.style.background=''};
+    el.ondrop=async e=>{
+      e.preventDefault();el.style.background='';
+      const tid=e.dataTransfer.getData('text/plain');if(!tid)return;
+      const task=S.tasks.find(t=>t.id===tid);if(!task)return;
+      task.dueDate=el.dataset.date;await db.put('tasks',task);await loadTasks();renderCalendar();
+    };
+  });
+  // Make task blocks in day view draggable
+  setTimeout(()=>{
+    $$('.qb-task-block[draggable]').forEach(el=>{
+      el.ondragstart=e=>e.dataTransfer.setData('text/plain',el.dataset.taskId);
+    });
+  },100);
+}
+
+function getWeekStart(d){const dt=new Date(d);const day=(dt.getDay()+6)%7;dt.setDate(dt.getDate()-day);dt.setHours(0,0,0,0);return dt}
+
+function renderWeekView(){
+  const ws=getWeekStart(S.calDate);const colors={work:'#3b82f6',daily:'#22c55e',project:'#a855f7'};
+  let h=`<div style="display:grid;grid-template-columns:60px repeat(7,1fr);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden">`;
+  h+=`<div style="background:var(--card);padding:8px;border-bottom:1px solid var(--border)"></div>`;
+  for(let i=0;i<7;i++){const d=new Date(ws);d.setDate(d.getDate()+i);const isT=d.toISOString().split('T')[0]===today();
+    h+=`<div style="background:var(--card);padding:8px;border-bottom:1px solid var(--border);text-align:center;${isT?'color:var(--accent);font-weight:700':''}"><div class="qb-text-xs">${['Mon','Tue','Wed','Thu','Fri','Sat','Sun'][i]}</div><div class="qb-bold">${d.getDate()}</div></div>`}
+  for(let hr=6;hr<=22;hr++){
+    h+=`<div class="qb-time-slot" style="background:var(--card);border-right:1px solid var(--border)">${formatHour(hr)}</div>`;
+    for(let i=0;i<7;i++){
+      const d=new Date(ws);d.setDate(d.getDate()+i);const ds=d.toISOString().split('T')[0];
+      const slotTasks=S.tasks.filter(t=>t.dueDate===ds&&t.startTime&&parseInt(t.startTime)===hr);
+      h+=`<div class="qb-time-slot qb-week-col" data-date="${ds}" data-hour="${hr}" style="cursor:pointer">${slotTasks.map(t=>`<div class="qb-task-block" data-task-id="${t.id}" draggable="true" style="background:${colors[t.category]||'#8b5cf6'}33;border-left:3px solid ${colors[t.category]||'#8b5cf6'}">${escHtml(t.title.substring(0,20))}</div>`).join('')}</div>`;
+    }
+  }
+  h+=`</div>`;
+  $('#calContent').innerHTML=h;
+  // Click to add
+  $$('.qb-week-col').forEach(el=>{
+    el.onclick=()=>{openTaskModal();setTimeout(()=>{$('#mtDate').value=el.dataset.date;$('#mtStart').value=String(el.dataset.hour).padStart(2,'0')+':00'},50)};
+  });
+}
+
+function renderDayView(){
+  const d=S.calDate;
+  const ds=d.toISOString().split('T')[0];
+  const colors={work:'#3b82f6',daily:'#22c55e',project:'#a855f7'};
+  const dayTasks=S.tasks.filter(t=>t.dueDate===ds);
+  const allDayTasks=dayTasks.filter(t=>!t.startTime);
+  const timedTasks=dayTasks.filter(t=>t.startTime);
+  const completedCount=dayTasks.filter(t=>t.completed).length;
+  const dStr=d.toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric',year:'numeric'});
+  const isT=ds===today();
+
+  let h=`<div style="max-width:820px">`;
+  // Day header with navigation
+  h+=`<div class="qb-card qb-mb-8 qb-day-header">
+    <div class="qb-row qb-between qb-center">
+      <div class="qb-row qb-gap-12 qb-center">
+        <button class="qb-btn-icon" id="dayPrev" title="Previous Day"><i class="fas fa-chevron-left"></i></button>
+        <button class="qb-btn-icon" id="dayNext" title="Next Day"><i class="fas fa-chevron-right"></i></button>
+        <div>
+          <div class="qb-text-lg qb-bold">${dStr}${isT?' <span style="color:var(--accent);font-size:.75rem">(Today)</span>':''}</div>
+          <div class="qb-text-sm qb-text-muted">${dayTasks.length} task${dayTasks.length!==1?'s':''} &middot; ${completedCount} completed &middot; ${dayTasks.length-completedCount} remaining</div>
+        </div>
+      </div>
+      <button class="qb-btn qb-btn-primary qb-btn-sm" id="dayAddTask"><i class="fas fa-plus"></i> Add Task</button>
+    </div>
+  </div>`;
+
+  if(dayTasks.length===0){
+    h+=`<div class="qb-card" style="text-align:center;padding:50px 20px">
+      <i class="fas fa-calendar-day" style="font-size:2.5rem;display:block;margin-bottom:12px;color:var(--text3)"></i>
+      <div class="qb-text-muted qb-semibold">No tasks for this day</div>
+      <div class="qb-text-xs qb-text-dim qb-mt-4">Click empty time slots to add tasks, or use the Add Task button above</div>
+    </div>`;
+  }else{
+    // All-day tasks section
+    if(allDayTasks.length>0){
+      h+=`<div class="qb-mb-8"><div class="qb-text-xs qb-bold qb-text-dim qb-mb-4" style="text-transform:uppercase;letter-spacing:.5px"><i class="fas fa-clock" style="margin-right:4px"></i> All Day</div>`;
+      allDayTasks.forEach(t=>{
+        h+=`<div class="qb-day-alltask" style="background:var(--card);border-color:${colors[t.category]||'#8b5cf6'}" data-day-edit="${t.id}">
+          <div class="qb-task-check${t.completed?' checked':''}" data-day-check="${t.id}"></div>
+          <div class="qb-flex-1" style="min-width:0">
+            <div class="qb-text-sm qb-semibold" style="${t.completed?'text-decoration:line-through;opacity:.6':''}">${escHtml(t.title)}</div>
+            ${t.description?`<div class="qb-text-xs qb-text-dim qb-mt-4" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escHtml(t.description.substring(0,100))}${t.description.length>100?'...':''}</div>`:''}
+          </div>
+          <span class="qb-badge qb-badge-${t.category} qb-text-xs">${t.category}</span>
+          ${gam.settings.mode!=='zen'?`<span class="qb-xp-badge"><i class="fas fa-bolt"></i> ${gam.xpFor(t.priority||t.energyLevel)}</span>`:''}
+        </div>`;
+      });
+      h+=`</div>`;
+    }
+
+    // Hourly timeline
+    h+=`<div style="border:1px solid var(--border);border-radius:var(--radius);overflow:hidden">`;
+    for(let hr=6;hr<=23;hr++){
+      const slotTasks=timedTasks.filter(t=>parseInt(t.startTime)===hr);
+      h+=`<div class="qb-time-slot qb-day-slot qb-row" style="border-bottom:1px solid var(--border);min-height:52px;cursor:pointer" data-day-hour="${hr}" data-day-date="${ds}">
+        <div style="width:60px;flex-shrink:0;text-align:right;padding-right:10px;color:var(--text3);font-size:.78rem">${formatHour(hr)}</div>
+        <div class="qb-flex-1" style="border-left:1px solid var(--border);padding-left:6px">`;
+      slotTasks.forEach(t=>{
+        const bgClr=colors[t.category]||'#8b5cf6';
+        h+=`<div class="qb-day-task-block" data-day-edit="${t.id}" draggable="true" style="background:${bgClr}18;border-color:${bgClr};${t.completed?'opacity:.5':''}">
+          <div class="qb-row qb-gap-4 qb-between">
+            <span class="qb-semibold qb-text-sm" style="${t.completed?'text-decoration:line-through':''}">${escHtml(t.title)}</span>
+            ${gam.settings.mode!=='zen'?`<span class="qb-xp-badge" style="font-size:.65rem"><i class="fas fa-bolt"></i> ${gam.xpFor(t.priority||t.energyLevel)}</span>`:''}
+          </div>
+          <div class="qb-row qb-gap-8 qb-mt-4">
+            <span class="qb-text-xs" style="opacity:.7">${fmtTime(t.startTime)}${t.endTime?' - '+fmtTime(t.endTime):''}</span>
+            <span class="qb-badge qb-badge-${t.category}" style="font-size:.65rem;padding:1px 8px">${t.category}</span>
+            ${t.description?`<span class="qb-text-xs qb-text-dim" style="flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escHtml(t.description.substring(0,60))}</span>`:''}
+          </div>
+          ${(t.attachments||[]).length>0?`<div class="qb-text-xs qb-mt-4" style="opacity:.5"><i class="fas fa-paperclip" style="font-size:.6rem"></i> ${(t.attachments).length} attachment(s)</div>`:''}
+        </div>`;
+      });
+      h+=`</div></div>`;
+    }
+    h+=`</div>`;
+  }
+  h+=`</div>`;
+  $('#calContent').innerHTML=h;
+
+  // Bindings
+  const prevBtn=$('#dayPrev');
+  if(prevBtn)prevBtn.onclick=()=>{S.calDate.setDate(S.calDate.getDate()-1);renderCalendar()};
+  const nextBtn=$('#dayNext');
+  if(nextBtn)nextBtn.onclick=()=>{S.calDate.setDate(S.calDate.getDate()+1);renderCalendar()};
+  const addBtn=$('#dayAddTask');
+  if(addBtn)addBtn.onclick=()=>{openTaskModal();setTimeout(()=>{$('#mtDate').value=ds},50)};
+
+  // Click task to show summary
+  $$('[data-day-edit]').forEach(el=>{
+    el.onclick=e=>{
+      if(e.target.closest('[data-day-check]'))return;
+      const task=S.tasks.find(t=>t.id===el.dataset.dayEdit);
+      if(task)showTaskSummary(task);
+    };
+  });
+
+  // Checkbox completion
+  $$('[data-day-check]').forEach(el=>{
+    el.onclick=async e=>{
+      e.stopPropagation();
+      const task=S.tasks.find(t=>t.id===el.dataset.dayCheck);
+      if(!task)return;
+      task.completed=!task.completed;task.completedAt=task.completed?nowISO():null;
+      await db.put('tasks',task);
+      if(task.completed){task.xpEarned=gam.xpFor(task.priority==='boss'?'boss':task.energyLevel);await gam.completeTask(task)}
+      await loadTasks();renderCalendar();
+    };
+  });
+
+  // Click empty time slot to add task with pre-filled time
+  $$('[data-day-hour]').forEach(el=>{
+    el.onclick=e=>{
+      if(e.target.closest('.qb-day-task-block'))return;
+      const hr=parseInt(el.dataset.dayHour);
+      const dateStr=el.dataset.dayDate;
+      openTaskModal();
+      setTimeout(()=>{
+        const dateIn=$('#mtDate');if(dateIn)dateIn.value=dateStr;
+        const tp=document.getElementById('tp-start');
+        if(tp){tp.dataset.h=hr;tp.dataset.m=0;
+          const hv=document.querySelector('[data-tpv="start-h"]');const mv=document.querySelector('[data-tpv="start-m"]');
+          if(hv)hv.textContent=String(hr%12||12).padStart(2,'0');if(mv)mv.textContent='00';
+          const ampm=tp.querySelector('[data-dir="ampm"]');if(ampm){ampm.textContent=hr<12?'AM':'PM';ampm.classList.add('active')}
+        }
+        const tpE=document.getElementById('tp-end');
+        if(tpE){tpE.dataset.h=(hr+1)%24;tpE.dataset.m=0;
+          const hv=document.querySelector('[data-tpv="end-h"]');const mv=document.querySelector('[data-tpv="end-m"]');
+          if(hv)hv.textContent=String((hr+1)%12||12).padStart(2,'0');if(mv)mv.textContent='00';
+          const ampm=tpE.querySelector('[data-dir="ampm"]');if(ampm){ampm.textContent=(hr+1)<12?'AM':'PM';ampm.classList.add('active')}
+        }
+      },100);
+    };
+  });
+
+  // Make task blocks draggable to other days
+  setTimeout(()=>{
+    $$('.qb-day-task-block[draggable]').forEach(el=>{
+      el.ondragstart=e=>e.dataTransfer.setData('text/plain',el.dataset.dayEdit);
+    });
+  },100);
+}
+
+function showTaskSummary(task){
+  const catL={work:'Work',daily:'Daily',project:'Project'}[task.category]||'Daily';
+  const xpVal=gam.xpFor(task.priority||task.energyLevel);
+  const atts=(task.attachments||[]);
+  const priLbl={low:'Low',medium:'Medium',high:'High',critical:'Critical',boss:'BOSS'};
+  let bodyH='';
+  if(task.description){bodyH+=`<div class="qb-ts-field"><div class="qb-ts-label">Description</div><div class="qb-ts-value" style="white-space:pre-wrap">${escHtml(task.description)}</div></div>`}
+  var schedStr=task.startTime?' &middot; '+fmtTime(task.startTime)+(task.endTime?' - '+fmtTime(task.endTime):' - (no end time)'):'';
+  bodyH+=`<div class="qb-ts-field"><div class="qb-ts-label">Schedule</div><div class="qb-ts-value">${fmtDate(task.dueDate)}${schedStr}</div></div>`;
+  bodyH+=`<div class="qb-row qb-gap-8 qb-mb-8"><span class="qb-badge qb-badge-${task.category}">${catL}</span><span class="qb-badge qb-badge-${task.priority||'medium'}">${priLbl[task.priority]||'Medium'}</span>${gam.settings.mode!=='zen'?`<span class="qb-xp-badge"><i class="fas fa-bolt"></i> ${xpVal} XP</span>`:''}</div>`;
+  if(task.tags&&task.tags.length>0){bodyH+=`<div class="qb-ts-field"><div class="qb-ts-label">Tags</div><div class="qb-row qb-gap-4 qb-row-wrap">${task.tags.map(tg=>`<span class="qb-tag">${escHtml(tg)}</span>`).join('')}</div></div>`}
+  if(task.subtasks&&task.subtasks.length>0){
+    bodyH+=`<div class="qb-ts-field"><div class="qb-ts-label">Subtasks (${task.subtasks.filter(s=>s.completed).length}/${task.subtasks.length})</div>`;
+    task.subtasks.forEach(st=>{bodyH+=`<div class="qb-subtask" style="padding:4px 0"><div class="qb-subtask-check${st.completed?' checked':''}" style="pointer-events:none"></div><span style="${st.completed?'text-decoration:line-through;opacity:.6':''}">${escHtml(st.title)}</span></div>`});
+    bodyH+=`</div>`;
+  }
+  if(atts.length>0){
+    bodyH+=`<div class="qb-ts-field"><div class="qb-ts-label">Attachments</div>`;
+    atts.forEach(a=>{
+      if(a.type==='voice'||(a.mimeType&&a.mimeType.startsWith('audio'))){bodyH+=`<div class="qb-ts-att"><span class="qb-att-type qb-att-type-voice"><i class="fas fa-microphone"></i> Voice Note</span><audio controls src="${a.data}" preload="none"></audio></div>`}
+      else if(a.type==='image'||(a.mimeType&&a.mimeType.startsWith('image'))){bodyH+=`<div class="qb-ts-att"><img src="${a.data}" alt="${escHtml(a.name||'Image')}"><span class="qb-ts-value" style="flex:1">${escHtml(a.name||'Image')}</span></div>`}
+      else{bodyH+=`<div class="qb-ts-att"><i class="fas fa-file" style="color:var(--text3)"></i><span class="qb-ts-value">${escHtml(a.name||'File')}</span></div>`}
+    });
+    bodyH+=`</div>`;
+  }
+  if(task.recurrence&&task.recurrence!=='none'){bodyH+=`<div class="qb-ts-field"><div class="qb-ts-label">Recurrence</div><div class="qb-ts-value" style="text-transform:capitalize">${task.recurrence}</div></div>`}
+  bodyH+=`<div class="qb-ts-field" style="margin-bottom:0"><div class="qb-ts-label">Created</div><div class="qb-ts-value qb-text-dim">${fmtDate(task.createdAt)}${task.completed?' &middot; <span style="color:var(--success)">Completed '+fmtDate(task.completedAt)+'</span>':''}</div></div>`;
+  const ov=document.createElement('div');
+  ov.className='qb-ts-overlay';
+  ov.id='tsOverlay';
+  ov.innerHTML=`<div class="qb-ts-card">
+    <div class="qb-ts-header">
+      <div class="qb-ts-title" style="${task.completed?'text-decoration:line-through;opacity:.6':''}">${escHtml(task.title)}</div>
+      <div class="qb-ts-actions">
+        <button class="qb-btn-icon" id="tsEdit" title="Edit"><i class="fas fa-pen"></i></button>
+        <button class="qb-btn-icon" id="tsDelete" title="Delete" style="border-color:var(--danger);color:var(--danger)"><i class="fas fa-trash"></i></button>
+        <button class="qb-btn-icon" id="tsClose" title="Close"><i class="fas fa-times"></i></button>
+      </div>
+    </div>
+    <div class="qb-ts-body">${bodyH}</div>
+  </div>`;
+  ov.onclick=function(e){if(e.target===ov){ov.remove()}};
+  document.body.appendChild(ov);
+  setTimeout(function(){ov.classList.add('show')},10);
+  ov.querySelector('#tsClose').onclick=function(){ov.remove()};
+  ov.querySelector('#tsEdit').onclick=function(){ov.remove();openTaskModal(task.id)};
+  ov.querySelector('#tsDelete').onclick=async function(){
+    if(!confirm('Delete this quest?'))return;
+    await db.del('tasks',task.id);await loadTasks();ov.remove();renderCalendar();showToast('Quest deleted','info');
+  };
+}
+
+function formatHour(h){return `${h%12||12}:00 ${h>=12?'PM':'AM'}`}
+
+// ==================== NOTES VIEW ====================
+function renderNotes(){
+  const selNote=S.selNoteId?S.notes.find(n=>n.id===S.selNoteId):null;
+  const sortedNotes=S.notes.sort((a,b)=>{if(a.pinned&&!b.pinned)return -1;if(!a.pinned&&b.pinned)return 1;return new Date(b.updatedAt)-new Date(a.updatedAt)});
+  const vc=$('#viewContainer');
+  vc.innerHTML=`<div class="qb-view">
+    <div class="qb-row qb-between qb-mb-8">
+      <h2 class="qb-text-xl qb-bold">Notes</h2>
+      <button class="qb-btn qb-btn-primary" id="newNoteBtn"><i class="fas fa-plus"></i> New Note</button>
+    </div>
+    <div style="display:flex;gap:16px;align-items:flex-start">
+      <div style="width:240px" class="qb-shrink-0">
+        <div class="qb-filter-bar qb-mb-8"><input type="text" class="qb-input" id="noteSearch" placeholder="Search notes..."></div>
+        <div id="noteList">${sortedNotes.length===0?'<p class="qb-text-muted qb-text-xs" style="padding:12px;text-align:center">No notes yet</p>':sortedNotes.map(n=>`<div class="qb-note-card qb-mb-4${n.pinned?' pinned':''}" data-id="${n.id}" style="border-left:3px solid ${n.color||'var(--accent)'}"><div class="qb-text-sm qb-semibold qb-truncate">${escHtml(n.title||'Untitled')}</div><div class="qb-text-xs qb-text-dim qb-mt-4">${fmtDate(n.updatedAt)}</div></div>`).join('')}</div>
+      </div>
+      <div class="qb-flex-1" id="noteEditorWrap">
+        ${selNote?renderNoteEditor(selNote):`<div class="qb-card" style="text-align:center;padding:60px 20px;color:var(--text3)"><i class="fas fa-sticky-note" style="font-size:2.5rem;margin-bottom:12px;display:block"></i><div>Select or create a note</div></div>`}
+      </div>
+    </div>
+  </div>`;
+
+  $('#newNoteBtn').onclick=async()=>{
+    const n={id:uuid(),title:'Untitled Note',content:'',plainText:'',color:'#8b5cf6',createdAt:nowISO(),updatedAt:nowISO(),pinned:false,attachments:[],linkedTaskIds:[]};
+    await db.add('notes',n);await loadNotes();await gam.incNotes();S.selNoteId=n.id;renderNotes();
+  };
+  $$('#noteList .qb-note-card').forEach(el=>{
+    el.onclick=()=>{S.selNoteId=el.dataset.id;renderNotes()};
+    el.oncontextmenu=e=>{e.preventDefault();const nid=el.dataset.id;
+      showCtx(e.clientX,e.clientY,[{action:'pin',icon:'thumbtack',label:'Pin/Unpin'},{action:'delete',icon:'trash',label:'Delete'}]);
+      $$('.qb-ctx-item').forEach(ci=>{ci.onclick=async()=>{
+        hideCtx();
+        if(ci.dataset.action==='pin'){const n=S.notes.find(x=>x.id===nid);if(n){n.pinned=!n.pinned;await db.put('notes',n);await loadNotes();renderNotes()}}
+        if(ci.dataset.action==='delete'){await db.del('notes',nid);await loadNotes();if(S.selNoteId===nid)S.selNoteId=null;showToast('Note deleted','info');renderNotes()}
+      }});
+    };
+  });
+}
+
+function renderNoteEditor(n){
+  return `<div class="qb-card">
+    <div class="qb-row qb-between qb-mb-8">
+      <input type="text" class="qb-input" id="neTitle" value="${escHtml(n.title)}" style="font-size:1.1rem;font-weight:700;border:none;background:transparent;padding:0">
+      <div class="qb-row qb-gap-8">
+        <input type="color" id="neColor" value="${n.color||'#8b5cf6'}" style="width:32px;height:32px;border:none;background:none;cursor:pointer">
+        <button class="qb-btn-icon" id="nePin" title="Pin" style="${n.pinned?'color:var(--warning);border-color:var(--warning)':''}"><i class="fas fa-thumbtack"></i></button>
+      </div>
+    </div>
+    <div class="qb-rich-toolbar" id="neToolbar">
+      <button data-cmd="bold" title="Bold"><i class="fas fa-bold"></i></button>
+      <button data-cmd="italic" title="Italic"><i class="fas fa-italic"></i></button>
+      <button data-cmd="underline" title="Underline"><i class="fas fa-underline"></i></button>
+      <button data-cmd="insertUnorderedList" title="List"><i class="fas fa-list-ul"></i></button>
+      <button data-cmd="insertOrderedList" title="Numbered List"><i class="fas fa-list-ol"></i></button>
+      <button data-cmd="formatBlock" data-val="H2" title="Heading"><b>H</b></button>
+      <button data-cmd="formatBlock" data-val="BLOCKQUOTE" title="Quote"><i class="fas fa-quote-right"></i></button>
+    </div>
+    <div class="qb-rich-editor" id="neContent" contenteditable="true">${n.content||'<p>Start writing...</p>'}</div>
+    <div class="qb-mt-8 qb-row qb-gap-8 qb-row-wrap">
+      <button class="qb-btn qb-btn-secondary qb-btn-sm" id="neVoiceBtn"><i class="fas fa-microphone"></i> Voice</button>
+      <span id="neVoiceStatus" class="qb-text-xs qb-text-dim"></span>
+    </div>
+    <div class="qb-mt-4 qb-text-xs qb-text-dim">Auto-saves on change. Right-click text to convert to task.</div>
+  </div>`;
+
+  // After DOM update
+  setTimeout(()=>{
+    const titleIn=$('#neTitle');const contentIn=$('#neContent');const colorIn=$('#neColor');
+    if(!titleIn)return;
+    const saveNote=debounce(async()=>{
+      const note=S.notes.find(x=>x.id===n.id);if(!note)return;
+      note.title=titleIn.value;note.content=contentIn.innerHTML;
+      note.plainText=contentIn.innerText;note.color=colorIn.value;note.updatedAt=nowISO();
+      await db.put('notes',note);await loadNotes();
+    },500);
+    titleIn.oninput=saveNote;
+    contentIn.oninput=saveNote;
+    colorIn.oninput=saveNote;
+    $('#nePin').onclick=async()=>{const note=S.notes.find(x=>x.id===n.id);if(note){note.pinned=!note.pinned;await db.put('notes',note);await loadNotes();renderNotes()}};
+    $$('#neToolbar button').forEach(btn=>{
+      btn.onclick=()=>{document.execCommand(btn.dataset.cmd,false,btn.dataset.val||null);contentIn.focus()};
+    });
+
+    // Text-to-task via context menu
+    contentIn.oncontextmenu=e=>{
+      const sel=window.getSelection();const text=sel.toString().trim();
+      if(!text)return;
+      showCtx(e.clientX,e.clientY,[{action:'convertToTask',icon:'tasks',label:`Convert to Quest: "${text.substring(0,30)}..."`}]);
+      $$('.qb-ctx-item').forEach(ci=>{ci.onclick=()=>{hideCtx();if(ci.dataset.action==='convertToTask'){openTaskModal();setTimeout(()=>$('#mtTitle').value=text,50)}}});
+    };
+
+    // Voice
+    let mRec=null,vChunks=[],vTimer=null;
+    const voiceBtn=$('#neVoiceBtn');
+    if(voiceBtn)voiceBtn.onclick=async()=>{
+      if(mRec&&mRec.state==='recording'){mRec.stop();clearInterval(vTimer);$('#neVoiceStatus').textContent='Processing...'}
+      else{
+        try{const stream=await navigator.mediaDevices.getUserMedia({audio:true});mRec=new MediaRecorder(stream);vChunks=[];
+          mRec.ondataavailable=e=>{if(e.data.size>0)vChunks.push(e.data)};
+          mRec.onstop=()=>{stream.getTracks().forEach(t=>t.stop());$('#neVoiceStatus').textContent='Voice note recorded ✓';
+            if('webkitSpeechRecognition' in window){try{const sr=new(window.SpeechRecognition||window.webkitSpeechRecognition)();sr.lang='en-US';sr.onresult=e=>{$('#neVoiceStatus').textContent='Transcript: '+e.results[0][0].transcript};sr.onerror=()=>{};sr.start()}catch(e){}}
+          };mRec.start();let s=0;vTimer=setInterval(()=>{s++;$('#neVoiceStatus').innerHTML=`<span class="qb-rec"><span class="qb-rec-dot"></span> ${Math.floor(s/60)}:${String(s%60).padStart(2,'0')}</span>`},1000);
+        }catch(e){showToast('Mic access denied','error')}
+      }
+    };
+  },50);
+}
+
+// ==================== MOOD BOARD VIEW ====================
+function renderMoodBoard(){
+  const vc=$('#viewContainer');
+  vc.innerHTML=`<div class="qb-view">
+    <div class="qb-row qb-between qb-mb-8">
+      <h2 class="qb-text-xl qb-bold">Mood Board</h2>
+      <div class="qb-row qb-gap-8" style="flex-wrap:wrap">
+        <button class="qb-chip${S.mood.tool==='select'?' active':''}" data-mood-tool="select"><i class="fas fa-mouse-pointer"></i> Select</button>
+        <button class="qb-chip${S.mood.tool==='sticky'?' active':''}" data-mood-tool="sticky"><i class="fas fa-sticky-note"></i> Sticky</button>
+        <button class="qb-chip${S.mood.tool==='text'?' active':''}" data-mood-tool="text"><i class="fas fa-font"></i> Text</button>
+        <button class="qb-chip${S.mood.tool==='image'?' active':''}" data-mood-tool="image"><i class="fas fa-image"></i> Image</button>
+        <button class="qb-chip${S.mood.tool==='box'?' active':''}" data-mood-tool="box"><i class="fas fa-vector-square"></i> Box</button>
+        <button class="qb-chip${S.mood.tool==='connect'?' active':''}" data-mood-tool="connect"><i class="fas fa-project-diagram"></i> Connect</button>
+        <div class="qb-row qb-gap-4">
+          <button class="qb-btn-icon" id="moodZoomIn" title="Zoom In"><i class="fas fa-search-plus"></i></button>
+          <button class="qb-btn-icon" id="moodZoomOut" title="Zoom Out"><i class="fas fa-search-minus"></i></button>
+        </div>
+        <button class="qb-btn qb-btn-danger qb-btn-sm" id="moodClearAll"><i class="fas fa-trash"></i> Clear All</button>
+      </div>
+    </div>
+    <div class="qb-mood-canvas" id="moodCanvas" style="min-height:550px">
+      <svg id="moodSvg" style="position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:1"></svg>
+      <div id="moodItems"></div>
+    </div>
+    <div class="qb-text-xs qb-text-dim qb-mt-4" style="text-align:center">Double-click text/sticky to edit. Drag to move items. Drop images from desktop onto board. Right-click for more options.</div>
+  </div>`;
+
+  const canvas=$('#moodCanvas');
+  const itemsEl=$('#moodItems');
+  const svgEl=$('#moodSvg');
+
+  // Reusable file input for image uploads
+  const fileInput=document.createElement('input');
+  fileInput.type='file';fileInput.accept='image/*';fileInput.multiple=true;
+  fileInput.style.display='none';
+  document.body.appendChild(fileInput);
+
+  // Local state
+  let dragItem=null,dragOX=0,dragOY=0;
+  let isPanning=false,panStartX=0,panStartY=0,panTX=0,panTY=0;
+
+  // --- Render items ---
+  const renderItems=()=>{
+    itemsEl.innerHTML=S.moodItems.filter(i=>i.type!=='connector').map(item=>{
+      const col=item.color||'#8b5cf6';
+      let inner='';
+      let st='left:'+item.x+'px;top:'+item.y+'px;';
+      if(item.width)st+='width:'+item.width+'px;';
+      if(item.height)st+='height:'+item.height+'px;';
+      if(item.type==='sticky'){
+        inner='<div class="qb-mood-sticky" style="background:'+col+'22;border:2px solid '+col+';border-radius:8px;width:100%;height:100%;min-width:60px;min-height:40px;color:var(--text);overflow:hidden;padding:10px;font-size:.85rem" data-content-id="'+item.id+'">'+escHtml(item.content||'')+'</div>';
+      }else if(item.type==='text'){
+        inner='<div class="qb-mood-text-el" style="padding:4px 8px;color:var(--text);font-size:.9rem;white-space:nowrap;min-width:20px;user-select:none" data-content-id="'+item.id+'">'+escHtml(item.content||'Text')+'</div>';
+      }else if(item.type==='image'){
+        inner='<img src="'+item.content+'" style="width:100%;height:100%;object-fit:cover;border-radius:6px;pointer-events:none">';
+      }else if(item.type==='box'){
+        inner='<div style="width:100%;height:100%;border:2px solid '+col+';border-radius:6px;background:'+col+'11"></div>';
+      }
+      return '<div class="qb-mood-item'+(S.mood.sel===item.id?' selected':'')+'" data-id="'+item.id+'" style="'+st+'">'+inner+'<div class="qb-resize-handle" data-resize-id="'+item.id+'"></div></div>';
+    }).join('');
+    renderConnectors();
+  };
+
+  const renderConnectors=()=>{
+    if(!svgEl)return;
+    svgEl.innerHTML=S.moodItems.filter(i=>i.type==='connector').map(c=>{
+      const from=S.moodItems.find(i=>i.id===c.fromId);
+      const to=S.moodItems.find(i=>i.id===c.toId);
+      if(!from||!to)return'';
+      const fw=from.width||150,fh=from.height||100,tw=to.width||150,th=to.height||100;
+      return '<line x1="'+(from.x+fw/2)+'" y1="'+(from.y+fh/2)+'" x2="'+(to.x+tw/2)+'" y2="'+(to.y+th/2)+'" stroke="'+(c.color||'#8b5cf6')+'" stroke-width="2" stroke-dasharray="6"/>';
+    }).join('');
+  };
+
+  renderItems();
+
+  // --- Tool selection ---
+  $$('[data-mood-tool]').forEach(btn=>{
+    btn.onclick=()=>{
+      S.mood.tool=btn.dataset.moodTool;
+      $$('[data-mood-tool]').forEach(b=>b.classList.remove('active'));
+      btn.classList.add('active');
+      canvas.style.cursor=S.mood.tool==='select'?'grab':'crosshair';
+      if(S.mood.tool==='image'){
+        fileInput.value='';
+        fileInput.onchange=e=>{
+          Array.from(e.target.files).forEach(f=>{
+            const reader=new FileReader();
+            reader.onload=()=>{
+              const rect=canvas.getBoundingClientRect();
+              const x=20+Math.random()*(rect.width-240);
+              const y=20+Math.random()*(rect.height-190);
+              S.moodItems.push({id:uuid(),type:'image',x,y,width:200,height:150,content:reader.result,color:'',createdAt:nowISO()});
+              renderItems();saveMood();
+            };
+            reader.readAsDataURL(f);
+          });
+        };
+        fileInput.click();
+      }
+    };
+  });
+
+  // --- Main canvas mousedown handler ---
+  canvas.onmousedown=e=>{
+    const itemEl=e.target.closest('.qb-mood-item');
+    const resizeH=e.target.closest('.qb-resize-handle');
+
+    // 1. Resize handle
+    if(resizeH){
+      e.preventDefault();e.stopPropagation();
+      const item=S.moodItems.find(i=>i.id===resizeH.dataset.resizeId);
+      if(!item)return;
+      const startX=e.clientX,startY=e.clientY;
+      const startW=item.width||150,startH=item.height||100;
+      const onMove=ev=>{
+        item.width=Math.max(40,startW+(ev.clientX-startX));
+        item.height=Math.max(30,startH+(ev.clientY-startY));
+        const el=document.querySelector('.qb-mood-item[data-id="'+item.id+'"]');
+        if(el){el.style.width=item.width+'px';el.style.height=item.height+'px'}
+        renderConnectors();
+      };
+      const onUp=()=>{
+        document.removeEventListener('mousemove',onMove);
+        document.removeEventListener('mouseup',onUp);
+        saveMood();
+      };
+      document.addEventListener('mousemove',onMove);
+      document.addEventListener('mouseup',onUp);
+      return;
+    }
+
+    // 2. Connect tool - drag from item to item to connect
+    if(S.mood.tool==='connect'){
+      if(itemEl){
+        e.preventDefault();
+        const item=S.moodItems.find(i=>i.id===itemEl.dataset.id);
+        if(!item)return;
+        S.mood.connFrom=itemEl.dataset.id;
+        S.mood.connDragging=true;
+        S.mood.connSourceRect=itemEl.getBoundingClientRect();
+        $$('.qb-mood-item').forEach(el=>el.classList.remove('selected'));
+        itemEl.classList.add('selected');
+        // Create temp visual line (fixed positioning avoids transform math)
+        var tempLine=document.createElement('div');
+        tempLine.id='tempConnLine';
+        tempLine.style.cssText='position:fixed;pointer-events:none;z-index:300;height:2px;background:var(--accent);transform-origin:0 0;opacity:.7';
+        document.body.appendChild(tempLine);
+      }
+      return;
+    }
+
+    // 3. Select tool - drag items
+    if(S.mood.tool==='select'&&itemEl){
+      e.preventDefault();
+      const item=S.moodItems.find(i=>i.id===itemEl.dataset.id);
+      if(!item)return;
+      S.mood.sel=itemEl.dataset.id;
+      dragItem=itemEl;
+      dragOX=e.clientX-item.x;
+      dragOY=e.clientY-item.y;
+      $$('.qb-mood-item').forEach(el=>el.classList.remove('selected'));
+      itemEl.classList.add('selected');
+      canvas.style.cursor='grabbing';
+      return;
+    }
+
+    // 4. Create items (sticky, text, box)
+    if(S.mood.tool==='sticky'||S.mood.tool==='text'||S.mood.tool==='box'){
+      const rect=canvas.getBoundingClientRect();
+      const x=e.clientX-rect.left;
+      const y=e.clientY-rect.top;
+      const cols=['#8b5cf6','#3b82f6','#22c55e','#eab308','#ef4444','#ec4899'];
+      const item={
+        id:uuid(),type:S.mood.tool,x,y,
+        width:S.mood.tool==='sticky'?160:S.mood.tool==='box'?120:100,
+        height:S.mood.tool==='sticky'?110:S.mood.tool==='box'?80:40,
+        content:'',color:cols[Math.floor(Math.random()*cols.length)],createdAt:nowISO()
+      };
+      S.moodItems.push(item);renderItems();saveMood();
+      return;
+    }
+
+    // 5. Panning (select tool on empty canvas)
+    if(S.mood.tool==='select'&&!itemEl){
+      isPanning=true;
+      panStartX=e.clientX;panStartY=e.clientY;
+      const transform=itemsEl.style.transform||'';
+      const match=transform.match(/translate\(([^,)]+),\s*([^)]+)\)/);
+      panTX=match?parseFloat(match[1]):0;
+      panTY=match?parseFloat(match[2]):0;
+      canvas.style.cursor='grabbing';
+    }
+  };
+
+  // Double-click to edit text/sticky content
+  canvas.ondblclick=e=>{
+    const itemEl=e.target.closest('.qb-mood-item');
+    if(!itemEl)return;
+    const item=S.moodItems.find(i=>i.id===itemEl.dataset.id);
+    if(!item||item.type==='image'||item.type==='box')return;
+    const contentEl=itemEl.querySelector('[data-content-id]');
+    if(!contentEl)return;
+    contentEl.contentEditable='true';
+    if(item.type==='text'){contentEl.style.userSelect='text';contentEl.style.cursor='text';contentEl.style.outline='1px solid var(--accent)';contentEl.style.outlineOffset='-1px';contentEl.style.borderRadius='4px'}
+    if(item.type==='sticky'){contentEl.style.cursor='text';contentEl.style.outline='1px solid var(--accent)';contentEl.style.outlineOffset='-1px'}
+    contentEl.focus();
+    const range=document.createRange();
+    range.selectNodeContents(contentEl);
+    const sel=window.getSelection();
+    sel.removeAllRanges();sel.addRange(range);
+    const onBlur=()=>{
+      contentEl.contentEditable='false';
+      if(item.type==='text'){contentEl.style.userSelect='none';contentEl.style.cursor='move';contentEl.style.outline='none'}
+      if(item.type==='sticky'){contentEl.style.cursor='move';contentEl.style.outline='none'}
+      item.content=contentEl.textContent;
+      contentEl.removeEventListener('blur',onBlur);
+      contentEl.removeEventListener('keydown',onKey);
+      saveMood();
+    };
+    const onKey=ev=>{if(ev.key==='Escape')contentEl.blur()};
+    contentEl.addEventListener('blur',onBlur);
+    contentEl.addEventListener('keydown',onKey);
+  };
+
+  // Mouse move for dragging, panning, and connect line
+  document.addEventListener('mousemove',e=>{
+    if(dragItem){
+      const item=S.moodItems.find(i=>i.id===dragItem.dataset.id);
+      if(item){
+        item.x=e.clientX-dragOX;
+        item.y=e.clientY-dragOY;
+        dragItem.style.left=item.x+'px';
+        dragItem.style.top=item.y+'px';
+        renderConnectors();
+      }
+    }
+    if(isPanning){
+      const dx=panTX+(e.clientX-panStartX);
+      const dy=panTY+(e.clientY-panStartY);
+      itemsEl.style.transform='translate('+dx+'px,'+dy+'px)';
+      svgEl.style.transform='translate('+dx+'px,'+dy+'px)';
+    }
+    if(S.mood.connDragging){
+      var tl=document.getElementById('tempConnLine');
+      if(tl&&S.mood.connSourceRect){
+        var sx=S.mood.connSourceRect.left+S.mood.connSourceRect.width/2;
+        var sy=S.mood.connSourceRect.top+S.mood.connSourceRect.height/2;
+        var ddx=e.clientX-sx;
+        var ddy=e.clientY-sy;
+        var len=Math.sqrt(ddx*ddx+ddy*ddy);
+        var angle=Math.atan2(ddy,ddx)*180/Math.PI;
+        tl.style.left=sx+'px';
+        tl.style.top=sy+'px';
+        tl.style.width=len+'px';
+        tl.style.transform='rotate('+angle+'deg)';
+      }
+    }
+  });
+
+  // Mouse up
+  document.addEventListener('mouseup',function(e){
+    if(dragItem){canvas.style.cursor='grab';saveMood();dragItem=null}
+    if(isPanning){isPanning=false;canvas.style.cursor='grab'}
+    if(S.mood.connDragging){
+      S.mood.connDragging=false;
+      var tempLine=document.getElementById('tempConnLine');
+      if(tempLine)tempLine.remove();
+      var elUnder=document.elementFromPoint(e.clientX,e.clientY);
+      var targetEl=elUnder?elUnder.closest('.qb-mood-item'):null;
+      if(targetEl&&targetEl.dataset.id!==S.mood.connFrom){
+        S.moodItems.push({id:uuid(),type:'connector',fromId:S.mood.connFrom,toId:targetEl.dataset.id,x:0,y:0,width:0,height:0,content:'',color:'#8b5cf6',createdAt:nowISO()});
+        renderItems();saveMood();
+        showToast('Items connected!','success');
+      }
+      S.mood.connFrom=null;
+      S.mood.connSourceRect=null;
+    }
+  });
+
+  // Drag-and-drop images from desktop onto canvas
+  canvas.ondragover=e=>{e.preventDefault();e.dataTransfer.dropEffect='copy';canvas.classList.add('drag-over')};
+  canvas.ondragleave=()=>{canvas.classList.remove('drag-over')};
+  canvas.ondrop=e=>{
+    e.preventDefault();canvas.classList.remove('drag-over');
+    const files=e.dataTransfer.files;
+    if(!files.length)return;
+    const rect=canvas.getBoundingClientRect();
+    Array.from(files).forEach(f=>{
+      if(!f.type.startsWith('image/'))return;
+      const reader=new FileReader();
+      reader.onload=()=>{
+        const x=e.clientX-rect.left-100;
+        const y=e.clientY-rect.top-75;
+        S.moodItems.push({id:uuid(),type:'image',x,y,width:200,height:150,content:reader.result,color:'',createdAt:nowISO()});
+        renderItems();saveMood();
+      };
+      reader.readAsDataURL(f);
+    });
+  };
+
+  // Context menu on items
+  canvas.oncontextmenu=e=>{
+    const itemEl=e.target.closest('.qb-mood-item');
+    if(!itemEl)return;
+    e.preventDefault();
+    showCtx(e.clientX,e.clientY,[
+      {action:'delete',icon:'trash',label:'Delete Item'},
+      {action:'duplicate',icon:'copy',label:'Duplicate'},
+      {action:'color',icon:'palette',label:'Change Color'},
+      {action:'front',icon:'layer-group',label:'Bring to Front'}
+    ]);
+    $$('.qb-ctx-item').forEach(ci=>{
+      ci.onclick=()=>{
+        hideCtx();
+        const itemId=itemEl.dataset.id;
+        if(ci.dataset.action==='delete'){
+          S.moodItems=S.moodItems.filter(i=>i.id!==itemId);
+          S.moodItems=S.moodItems.filter(i=>i.type!=='connector'||(i.fromId!==itemId&&i.toId!==itemId));
+          S.mood.sel=null;renderItems();saveMood();
+        }
+        if(ci.dataset.action==='duplicate'){
+          const item=S.moodItems.find(i=>i.id===itemId);
+          if(item){S.moodItems.push({id:uuid(),type:item.type,x:item.x+25,y:item.y+25,width:item.width,height:item.height,content:item.content,color:item.color,createdAt:nowISO()});renderItems();saveMood()}
+        }
+        if(ci.dataset.action==='color'){
+          const item=S.moodItems.find(i=>i.id===itemId);
+          if(item){item.color=['#8b5cf6','#3b82f6','#22c55e','#eab308','#ef4444','#ec4899'][Math.floor(Math.random()*6)];renderItems();saveMood()}
+        }
+        if(ci.dataset.action==='front'){
+          const idx=S.moodItems.findIndex(i=>i.id===itemId);
+          if(idx>=0){const removed=S.moodItems.splice(idx,1)[0];S.moodItems.push(removed);renderItems();saveMood()}
+        }
+      };
+    });
+  };
+
+  // Save mood items to DB
+  const saveMood=debounce(async()=>{
+    const existing=await db.getAll('moodBoardItems');
+    for(const ex of existing){await db.del('moodBoardItems',ex.id)}
+    for(const item of S.moodItems){await db.add('moodBoardItems',item)}
+  },800);
+
+  // Zoom
+  $('#moodZoomIn').onclick=()=>{S.mood.zoom=Math.min(3,S.mood.zoom+0.2);itemsEl.style.transform='scale('+S.mood.zoom+')';svgEl.style.transform='scale('+S.mood.zoom+')'};
+  $('#moodZoomOut').onclick=()=>{S.mood.zoom=Math.max(0.3,S.mood.zoom-0.2);itemsEl.style.transform='scale('+S.mood.zoom+')';svgEl.style.transform='scale('+S.mood.zoom+')'};
+
+  // Clear all
+  $('#moodClearAll').onclick=async()=>{
+    if(!confirm('Clear entire mood board?'))return;
+    const all=await db.getAll('moodBoardItems');
+    for(const i of all){await db.del('moodBoardItems',i.id)}
+    S.moodItems=[];S.mood.sel=null;renderItems();showToast('Mood board cleared','info');
+  };
+}
+
+// ==================== ANALYTICS VIEW ====================
+function renderAnalytics(){
+  // Destroy old charts
+  S.charts.forEach(c=>{if(c&&c.destroy)c.destroy()});S.charts=[];
+
+  const td=today();const weekAgo=new Date(Date.now()-7*86400000).toISOString().split('T')[0];
+  const weekTasks=S.tasks.filter(t=>t.completed&&t.completedAt&&t.completedAt.split('T')[0]>=weekAgo);
+  const allWeekTasks=S.tasks.filter(t=>t.dueDate&&t.dueDate>=weekAgo&&t.dueDate<=td);
+  const compRate=allWeekTasks.length>0?Math.round(weekTasks.length/allWeekTasks.length*100):0;
+  const hourly=new Array(24).fill(0);
+  weekTasks.forEach(t=>{const h=new Date(t.completedAt).getHours();hourly[h]++});
+  const catBreak={work:0,daily:0,project:0};weekTasks.forEach(t=>{if(catBreak[t.category]!==undefined)catBreak[t.category]++});
+  const enBreak={low:0,medium:0,high:0,critical:0};weekTasks.forEach(t=>{if(enBreak[t.energyLevel]!==undefined)enBreak[t.energyLevel]++});
+  const dailyComp={};for(let i=6;i>=0;i--){const d=new Date(Date.now()-i*86400000).toISOString().split('T')[0];dailyComp[d]=weekTasks.filter(t=>t.completedAt&&t.completedAt.startsWith(d)).length}
+
+  const d=gam.data;
+  const vc=$('#viewContainer');
+  vc.innerHTML=`<div class="qb-view">
+    <div class="qb-row qb-between qb-mb-8"><h2 class="qb-text-xl qb-bold">Player Report</h2><span class="qb-text-muted">${fmtDate(new Date(weekAgo))} — ${fmtDate(new Date())}</span></div>
+    <div class="qb-grid qb-grid-4 qb-mb-12" style="gap:12px">
+      <div class="qb-card qb-stat-card"><div class="qb-stat-val">${weekTasks.length}</div><div class="qb-stat-lbl"><i class="fas fa-check-circle" style="color:var(--success)"></i> Completed</div></div>
+      <div class="qb-card qb-stat-card"><div class="qb-stat-val">${compRate}%</div><div class="qb-stat-lbl"><i class="fas fa-percentage" style="color:var(--accent)"></i> Completion Rate</div></div>
+      <div class="qb-card qb-stat-card"><div class="qb-stat-val">${d?d.streak.longestStreak:0}</div><div class="qb-stat-lbl"><i class="fas fa-fire" style="color:var(--warning)"></i> Best Streak</div></div>
+      <div class="qb-card qb-stat-card"><div class="qb-stat-val">${d?d.rpg.totalXP:0}</div><div class="qb-stat-lbl"><i class="fas fa-bolt" style="color:var(--accent)"></i> Total XP</div></div>
+    </div>
+    <div class="qb-grid qb-grid-2 qb-mb-12" style="gap:16px">
+      <div class="qb-chart-box"><div class="qb-text-sm qb-semibold qb-mb-4">Daily Completions</div><canvas id="chartDaily"></canvas></div>
+      <div class="qb-chart-box"><div class="qb-text-sm qb-semibold qb-mb-4">Productive Hours</div><canvas id="chartHourly"></canvas></div>
+      <div class="qb-chart-box"><div class="qb-text-sm qb-semibold qb-mb-4">Category Breakdown</div><canvas id="chartCat"></canvas></div>
+      <div class="qb-chart-box"><div class="qb-text-sm qb-semibold qb-mb-4">Energy Distribution</div><canvas id="chartEnergy"></canvas></div>
+    </div>
+    ${d&&d.rpg.achievements.length>0?`<div class="qb-card"><div class="qb-text-sm qb-semibold qb-mb-8">Achievements (${d.rpg.achievements.length}/${ACHS.length})</div><div class="qb-row qb-row-wrap qb-gap-8">${ACHS.map(a=>{const unlocked=d.rpg.achievements.find(x=>x.id===a.id);return `<div style="width:80px;text-align:center;padding:10px;border-radius:8px;background:${unlocked?'var(--accent-dim)':'var(--bg)'};border:1px solid ${unlocked?'var(--accent)':'var(--border)'};opacity:${unlocked?1:.4}"><div style="font-size:1.5rem">${a.icon}</div><div class="qb-text-xs qb-mt-4">${a.name}</div></div>`}).join('')}</div></div>`:''}
+  </div>`;
+
+  const chartOpts={responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{color:'var(--text2)',font:{size:11}}}}};
+  const scaleOpts={...chartOpts,scales:{x:{ticks:{color:'var(--text3)'},grid:{color:'rgba(58,58,96,.2)'}},y:{ticks:{color:'var(--text3)'},grid:{color:'rgba(58,58,96,.2)'}}}};
+
+  setTimeout(()=>{
+    const dailyEl=$('#chartDaily');if(dailyEl){
+      S.charts.push(new Chart(dailyEl,{type:'line',data:{labels:Object.keys(dailyComp).map(d=>new Date(d).toLocaleDateString('en-US',{weekday:'short'})),datasets:[{label:'Tasks',data:Object.values(dailyComp),borderColor:'#8b5cf6',backgroundColor:'rgba(139,92,246,.15)',fill:true,tension:.4}]},options:scaleOpts}));
+    }
+    const hourlyEl=$('#chartHourly');if(hourlyEl){
+      S.charts.push(new Chart(hourlyEl,{type:'bar',data:{labels:Array.from({length:24},(_,i)=>`${(i%12)||12}${i<12?'a':'p'}`),datasets:[{label:'Tasks',data:hourly,backgroundColor:'rgba(59,130,246,.5)',borderColor:'#3b82f6',borderRadius:4}]},options:scaleOpts}));
+    }
+    const catEl=$('#chartCat');if(catEl){
+      S.charts.push(new Chart(catEl,{type:'doughnut',data:{labels:['Work','Daily','Project'],datasets:[{data:[catBreak.work,catBreak.daily,catBreak.project],backgroundColor:['#3b82f6','#22c55e','#a855f7'],borderWidth:0}]},options:{...chartOpts,cutout:'65%'}}));
+    }
+    const enEl=$('#chartEnergy');if(enEl){
+      S.charts.push(new Chart(enEl,{type:'bar',data:{labels:['Low','Medium','High','Critical'],datasets:[{label:'Tasks',data:[enBreak.low,enBreak.medium,enBreak.high,enBreak.critical],backgroundColor:['#22c55e','#3b82f6','#eab308','#ef4444'],borderRadius:4}]},options:scaleOpts}));
+    }
+  },100);
+}
+
+// ==================== SETTINGS VIEW ====================
+function renderSettings(){
+  const s=gam.settings;const d=gam.data;
+  const vc=$('#viewContainer');
+  vc.innerHTML=`<div class="qb-view">
+    <h2 class="qb-text-xl qb-bold qb-mb-12">Settings</h2>
+
+    <div class="qb-grid qb-grid-2 qb-mb-12" style="gap:20px">
+      <!-- Gamification Mode -->
+      <div class="qb-card">
+        <h3 class="qb-text-lg qb-semibold qb-mb-8"><i class="fas fa-gamepad"></i> Gamification Mode</h3>
+        <div class="qb-row qb-gap-8 qb-mb-8">
+          <button class="qb-chip${s.mode==='rpg'?' active':''}" id="modeRpg"><i class="fas fa-shield-alt"></i> RPG Mode</button>
+          <button class="qb-chip${s.mode==='streak'?' active':''}" id="modeStreak"><i class="fas fa-fire"></i> Streak Mode</button>
+          <button class="qb-chip${s.mode==='zen'?' active':''}" id="modeZen"><i class="fas fa-om"></i> Zen Mode</button>
+        </div>
+        <p class="qb-text-sm qb-text-muted">${{rpg:'Earn XP, level up, and unlock achievements as you complete tasks.',streak:'Build daily streaks and level up your virtual pet companion.',zen:'All gamification hidden. Clean, distraction-free workspace.'}[s.mode]}</p>
+      </div>
+
+      <!-- Pet Settings -->
+      <div class="qb-card${s.mode!=='streak'?' qb-hidden':''}" id="petSection">
+        <h3 class="qb-text-lg qb-semibold qb-mb-8"><i class="fas fa-paw"></i> Virtual Pet</h3>
+        <div class="qb-form-group"><label class="qb-label">Pet Name</label><input type="text" class="qb-input" id="petName" value="${d?d.streak.pet.name:'Buddy'}"></div>
+        <div class="qb-form-group"><label class="qb-label">Pet Type</label><select class="qb-select" id="petType">
+          ${Object.entries(PETS).map(([k,v])=>`<option value="${k}"${d&&d.streak.pet.type===k?' selected':''}>${v.emoji} ${k.charAt(0).toUpperCase()+k.slice(1)}</option>`).join('')}
+        </select></div>
+        <button class="qb-btn qb-btn-primary qb-btn-sm" id="savePet">Save Pet</button>
+      </div>
+    </div>
+
+    <!-- Modular Toggles -->
+    <div class="qb-card qb-mb-12">
+      <h3 class="qb-text-lg qb-semibold qb-mb-8"><i class="fas fa-sliders-h"></i> Modular Gamification Toggles</h3>
+      <div id="toggleList">
+        <div class="qb-toggle-row"><div><div class="qb-semibold qb-text-sm">Show XP Bar</div><div class="qb-text-xs qb-text-dim">Display XP progress in sidebar</div></div><button class="qb-toggle${s.showXP?' on':''}" data-key="showXP"></button></div>
+        <div class="qb-toggle-row"><div><div class="qb-semibold qb-text-sm">Show Level Badge</div><div class="qb-text-xs qb-text-dim">Display current level</div></div><button class="qb-toggle${s.showLevel?' on':''}" data-key="showLevel"></button></div>
+        <div class="qb-toggle-row"><div><div class="qb-semibold qb-text-sm">Show Streak Counter</div><div class="qb-text-xs qb-text-dim">Display streak fire icon</div></div><button class="qb-toggle${s.showStreaks?' on':''}" data-key="showStreaks"></button></div>
+        <div class="qb-toggle-row"><div><div class="qb-semibold qb-text-sm">Show Virtual Pet</div><div class="qb-text-xs qb-text-dim">Display pet in sidebar (Streak mode)</div></div><button class="qb-toggle${s.showPet?' on':''}" data-key="showPet"></button></div>
+        <div class="qb-toggle-row"><div><div class="qb-semibold qb-text-sm">Confetti on Complete</div><div class="qb-text-xs qb-text-dim">Show confetti when completing tasks</div></div><button class="qb-toggle${s.confettiOnComplete?' on':''}" data-key="confettiOnComplete"></button></div>
+        <div class="qb-toggle-row"><div><div class="qb-semibold qb-text-sm">Achievement Notifications</div><div class="qb-text-xs qb-text-dim">Show popups for new achievements</div></div><button class="qb-toggle${s.achievementsEnabled?' on':''}" data-key="achievementsEnabled"></button></div>
+      </div>
+    </div>
+
+    <!-- Theme -->
+    <div class="qb-card qb-mb-12">
+      <h3 class="qb-text-lg qb-semibold qb-mb-8"><i class="fas fa-palette"></i> Theme</h3>
+      <div class="qb-row qb-gap-8">
+        <button class="qb-chip${s.darkMode?' active':''}" id="themeDark"><i class="fas fa-moon"></i> Dark</button>
+        <button class="qb-chip${!s.darkMode?' active':''}" id="themeLight"><i class="fas fa-sun"></i> Light</button>
+      </div>
+    </div>
+
+    <!-- Data Management -->
+    <div class="qb-card">
+      <h3 class="qb-text-lg qb-semibold qb-mb-8"><i class="fas fa-database"></i> Data Management</h3>
+      <div class="qb-row qb-gap-8 qb-row-wrap">
+        <button class="qb-btn qb-btn-primary" id="exportBtn"><i class="fas fa-download"></i> Export Data (JSON)</button>
+        <button class="qb-btn qb-btn-secondary" id="importBtn"><i class="fas fa-upload"></i> Import Data</button>
+        <input type="file" id="importFile" accept=".json" style="display:none">
+        <button class="qb-btn qb-btn-danger" id="clearAllBtn"><i class="fas fa-trash"></i> Clear All Data</button>
+      </div>
+      <p class="qb-text-xs qb-text-dim qb-mt-8">Your data is stored locally in your browser. Export regularly to avoid data loss.</p>
+    </div>
+  </div>`;
+
+  // Mode buttons
+  $('#modeRpg').onclick=async()=>{gam.settings.mode='rpg';gam.data.mode='rpg';await gam.save();gam.saveSettings();renderSidebarGam();renderSettings()};
+  $('#modeStreak').onclick=async()=>{gam.settings.mode='streak';gam.data.mode='streak';await gam.save();gam.saveSettings();renderSidebarGam();renderSettings()};
+  $('#modeZen').onclick=async()=>{gam.settings.mode='zen';gam.data.mode='zen';await gam.save();gam.saveSettings();renderSidebarGam();renderSettings()};
+
+  // Pet
+  $('#savePet').onclick=async()=>{
+    gam.data.streak.pet.name=$('#petName').value||'Buddy';gam.data.streak.pet.type=$('#petType').value;
+    await gam.save();showToast('Pet updated!','success');
+  };
+
+  // Toggles
+  $$('.qb-toggle').forEach(btn=>{
+    btn.onclick=async()=>{
+      const key=btn.dataset.key;gam.settings[key]=!gam.settings[key];
+      btn.classList.toggle('on');gam.data.settings={...gam.settings};await gam.save();gam.saveSettings();renderSidebarGam();
+    };
+  });
+
+  // Theme
+  $('#themeDark').onclick=()=>{gam.settings.darkMode=true;gam.saveSettings();document.documentElement.dataset.theme='dark';renderSettings()};
+  $('#themeLight').onclick=()=>{gam.settings.darkMode=false;gam.saveSettings();document.documentElement.dataset.theme='light';renderSettings()};
+
+  // Export
+  $('#exportBtn').onclick=async()=>{
+    try{
+      const data=await db.exportAll();const json=JSON.stringify(data,null,2);
+      const blob=new Blob([json],{type:'application/json'});
+      const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`questboard-backup-${today()}.json`;a.click();
+      URL.revokeObjectURL(a.href);showToast('Data exported!','success');
+    }catch(e){showToast('Export failed','error')}
+  };
+
+  // Import
+  $('#importBtn').onclick=()=>$('#importFile').click();
+  $('#importFile').onchange=async e=>{
+    const file=e.target.files[0];if(!file)return;
+    try{
+      const text=await file.text();const data=JSON.parse(text);
+      await db.importAll(data);showToast('Data imported! Reloading...','success');
+      setTimeout(()=>location.reload(),1500);
+    }catch(e){showToast('Import failed: Invalid file','error')}
+  };
+
+  // Clear all
+  $('#clearAllBtn').onclick=async()=>{
+    if(!confirm('This will permanently delete ALL your data. Are you sure?'))return;
+    if(!confirm('Really? This cannot be undone.'))return;
+    for(const s of['tasks','notes','moodBoardItems','gamification','analytics'])await db.clear(s);
+    localStorage.removeItem('qb_settings');showToast('All data cleared. Reloading...','info');
+    setTimeout(()=>location.reload(),1000);
+  };
+}
+
+// ==================== NAVIGATION ====================
+function navigate(view){
+  S.view=view;
+  $$('.qb-nav-item').forEach(n=>n.classList.toggle('active',n.dataset.view===view));
+  // Destroy charts if leaving analytics
+  if(S.view!=='analytics'&&S.charts.length>0){S.charts.forEach(c=>{try{c.destroy()}catch(e){}});S.charts=[]}
+  switch(view){
+    case'dashboard':renderDashboard();break;
+    case'tasks':renderTasks();break;
+    case'calendar':renderCalendar();break;
+    case'notes':renderNotes();break;
+    case'moodboard':renderMoodBoard();break;
+    case'analytics':renderAnalytics();break;
+    case'settings':renderSettings();break;
+  }
+}
+
+// ==================== GLOBAL EVENTS ====================
+function setupEvents(){
+  // Sidebar nav
+  $$('.qb-nav-item').forEach(btn=>{btn.onclick=()=>navigate(btn.dataset.view)});
+
+  // Toggle sidebar
+  $('#toggleSidebar').onclick=()=>$('#sidebar').classList.toggle('collapsed');
+
+  // Close modal on overlay click
+  $('#modalOverlay').onclick=e=>{if(e.target.id==='modalOverlay')closeModal()};
+
+  // Close context menu
+  document.addEventListener('click',hideCtx);
+
+  // Keyboard shortcuts
+  document.addEventListener('keydown',e=>{
+    if(e.ctrlKey&&e.key==='n'){e.preventDefault();openTaskModal()}
+    if(e.key==='Escape'){closeModal();hideCtx()}
+  });
+
+  // Apply saved theme
+  if(gam.settings.darkMode===false)document.documentElement.dataset.theme='light';
+}
+
+// ==================== PWA ====================
+function setupPWA(){
+  if('serviceWorker' in navigator){
+    const swCode=`self.addEventListener('install',e=>{self.skipWaiting()});self.addEventListener('activate',e=>{self.clients.claim()});self.addEventListener('fetch',e=>{e.respondWith(fetch(e.request).catch(()=>caches.match(e.request)))})`;
+    const blob=new Blob([swCode],{type:'application/javascript'});
+    const swUrl=URL.createObjectURL(blob);
+    navigator.serviceWorker.register(swUrl).catch(()=>{});
+  }
+  window.addEventListener('beforeinstallprompt',e=>{
+    e.preventDefault();showToast('Install QuestBoard as an app!','info');
+  });
+}
+
+// ==================== INIT ====================
+document.addEventListener('DOMContentLoaded',async()=>{
+  try{
+    await db.init();
+    await gam.load();
+    await loadAll();
+    setupEvents();
+    setupPWA();
+    renderSidebarGam();
+
+    // Remove loading screen, show app
+    $('#loading-screen').style.display='none';
+    $('#app').style.display='flex';
+
+    // Navigate to dashboard
+    navigate('dashboard');
+    S.loaded=true;
+  }catch(error){
+    console.error('QuestBoard init error:',error);
+    $('#loading-screen').innerHTML=`<div style="text-align:center;color:var(--danger)"><div style="font-size:2.5rem;margin-bottom:12px">⚠️</div><div class="qb-text-lg qb-bold">Failed to load</div><div class="qb-text-sm qb-mt-4 qb-text-muted">${escHtml(error.message)}</div><button class="qb-btn qb-btn-primary qb-mt-8" onclick="location.reload()">Retry</button></div>`;
+  }
+});
+</script>
+</body>
+</html>
