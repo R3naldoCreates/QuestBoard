@@ -340,7 +340,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica N
 .qb-mobile-hamburger:hover{background:var(--card);color:var(--accent)}
 .qb-mobile-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:58;opacity:0;transition:opacity .25s}
 .qb-mobile-overlay.show{opacity:1}
-.qb-mobile-bottom{display:none;position:fixed;bottom:0;left:0;right:0;z-index:42;background:var(--sidebar-bg);border-top:1px solid var(--border);padding:6px 12px 10px;flex-direction:column}
+.qb-mobile-bottom{display:none;position:fixed;bottom:0;left:0;right:0;z-index:42;background:var(--sidebar-bg);border-top:1px solid var(--border);padding:10px 16px 16px;flex-direction:column}
 .qb-mobile-gam{display:flex;align-items:center;justify-content:center;gap:10px;min-height:36px;overflow:hidden;flex-shrink:0}
 .qb-mobile-gam .qb-level-badge{font-size:.72rem;padding:3px 10px}
 .qb-mobile-gam .qb-streak{font-size:.82rem;margin:0}
@@ -408,8 +408,10 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica N
   .qb-ts-card{max-width:100%;max-height:80vh;border-radius:14px 14px 0 0}
 
   /* Dashboard: calendar + timeline SIDE BY SIDE */
-  .qb-row.qb-between{flex-direction:column;align-items:stretch;gap:8px}
-  .qb-row.qb-between .qb-row{flex-wrap:wrap;gap:6px;align-items:center}
+  #dashTasks > .qb-task .qb-row.qb-between,
+  #taskList > .qb-task .qb-row.qb-between{flex-direction:row;align-items:center;gap:6px}
+  #dashTasks > .qb-task .qb-row.qb-between > div:first-child,
+  #taskList > .qb-task .qb-row.qb-between > div:first-child{flex:1;min-width:0}
   .qb-row.qb-gap-20{flex-direction:column;gap:10px}
   #dashSidebar{width:100%!important}
   #dashSidebar .qb-row.qb-between{flex-direction:row;align-items:center;gap:6px}
@@ -465,6 +467,10 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica N
 
   /* Notes layout */
   .qb-note-card{padding:10px}
+  .qb-notes-layout{flex-direction:column!important}
+  .qb-notes-layout > div:first-child{width:100%!important}
+  .qb-notes-layout > div:first-child #noteList{display:flex;flex-wrap:wrap;gap:8px}
+  .qb-notes-layout > div:first-child .qb-note-card{flex:1 1 45%;min-width:140px}
 
   /* Analytics chart boxes */
   .qb-chart-box{height:200px;padding:10px}
@@ -494,7 +500,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica N
   .qb-grid-4,.qb-grid-3{grid-template-columns:repeat(2,1fr);gap:6px}
   .qb-modal-body{padding:12px}
   .qb-form-group{margin-bottom:10px}
-  .qb-mobile-gam i{font-size:.85rem}
+  .qb-mobile-gam i{font-size:.95rem}
   #main-content{padding:48px 8px 56px 8px}
   .qb-cal-day{min-height:32px;font-size:.7rem}
   .qb-mobile-gam{gap:5px;padding:3px 6px;min-height:24px}
@@ -533,6 +539,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica N
       <button class="qb-nav-item" data-view="tasks"><span class="qb-nav-icon"><i class="fas fa-tasks"></i></span><span class="qb-nav-label">Tasks</span></button>
       <button class="qb-nav-item" data-view="calendar"><span class="qb-nav-icon"><i class="fas fa-calendar-alt"></i></span><span class="qb-nav-label">Calendar</span></button>
       <button class="qb-nav-item" data-view="notes"><span class="qb-nav-icon"><i class="fas fa-sticky-note"></i></span><span class="qb-nav-label">Notes</span></button>
+      <button class="qb-nav-item" data-view="alarms"><span class="qb-nav-icon"><i class="fas fa-bell"></i></span><span class="qb-nav-label">Alarms</span></button>
       <button class="qb-nav-item" data-view="moodboard"><span class="qb-nav-icon"><i class="fas fa-palette"></i></span><span class="qb-nav-label">Mood Board</span></button>
       <button class="qb-nav-item" data-view="analytics"><span class="qb-nav-icon"><i class="fas fa-chart-line"></i></span><span class="qb-nav-label">Analytics</span></button>
       <button class="qb-nav-item" data-view="settings"><span class="qb-nav-icon"><i class="fas fa-cog"></i></span><span class="qb-nav-label">Settings</span></button>
@@ -571,10 +578,10 @@ class DB {
   constructor(){this.db=null}
   async init(){
     return new Promise((ok,no)=>{
-      const r=indexedDB.open('QuestBoardDB',2);
+      const r=indexedDB.open('QuestBoardDB',3);
       r.onupgradeneeded=e=>{
         const db=e.target.result;
-        ['tasks','notes','moodBoardItems','gamification','analytics'].forEach(n=>{
+        ['tasks','notes','moodBoardItems','gamification','analytics','alarms'].forEach(n=>{
           if(!db.objectStoreNames.contains(n)){
             const s=db.createObjectStore(n,{keyPath:'id'});
             if(n==='tasks'){s.createIndex('completed','completed');s.createIndex('dueDate','dueDate');s.createIndex('category','category')}
@@ -595,12 +602,12 @@ class DB {
   async clear(s){return new Promise((ok,no)=>{const r=this._tx(s,'readwrite').clear();r.onsuccess=()=>ok();r.onerror=()=>no(r.error)})}
   async exportAll(){
     const d={};
-    for(const s of['tasks','notes','moodBoardItems','gamification','analytics'])d[s]=await this.getAll(s);
+    for(const s of['tasks','notes','moodBoardItems','gamification','analytics','alarms'])d[s]=await this.getAll(s);
     d.settings=JSON.parse(localStorage.getItem('qb_settings')||'{}');
     return d;
   }
   async importAll(d){
-    for(const s of['tasks','notes','moodBoardItems','gamification','analytics']){
+    for(const s of['tasks','notes','moodBoardItems','gamification','analytics','alarms']){
       if(d[s]){await this.clear(s);for(const i of d[s])await this.add(s,i)}
     }
     if(d.settings)localStorage.setItem('qb_settings',JSON.stringify(d.settings));
@@ -631,7 +638,8 @@ class GamEngine {
     this.data=null;
     this.settings=JSON.parse(localStorage.getItem('qb_settings')||'null')||{
       mode:'rpg',showXP:true,showStreaks:true,showPet:true,showLevel:true,
-      soundEffects:false,confettiOnComplete:true,darkMode:true,achievementsEnabled:true
+      soundEffects:false,confettiOnComplete:true,darkMode:true,achievementsEnabled:true,
+      notificationsEnabled:false,alarmSounds:true,taskReminders:true
     };
   }
   async load(){
@@ -697,7 +705,7 @@ const gam=new GamEngine();
 
 // ==================== STATE ====================
 let S={
-  view:'dashboard',tasks:[],notes:[],moodItems:[],charts:[],
+  view:'dashboard',tasks:[],notes:[],moodItems:[],charts:[],alarms:[],
   calDate:new Date(),calView:'month',selNoteId:null,
   filters:{category:'all',energy:'all',status:'all',priority:'all',search:'',tag:null},
   sort:'dueDate',editTaskId:null,loaded:false,dashTagFilter:null,
@@ -805,8 +813,9 @@ function miniTask(t){
         <div class="qb-row qb-between" style="gap:6px">
           <div class="qb-task-title qb-truncate" style="flex:1;min-width:0">${escHtml(t.title)}</div>
           ${gam.settings.mode!=='zen'?`<span class="qb-xp-badge" style="flex-shrink:0"><i class="fas fa-bolt"></i> ${xpVal} XP</span>`:''}
+          ${t.alarmOffset!=null?`<span class="qb-text-xs" style="color:var(--warning);flex-shrink:0" title="Task alarm set"><i class="fas fa-bell"></i></span>`:''}
         </div>
-        <div style="display:flex;flex-wrap:wrap;gap:4px 8px;margin-top:6px;align-items:center">
+        <div style="display:flex;flex-wrap:wrap;gap:4px 8px;margin-top:6px;align-items:center;width:100%">
           <span class="qb-badge qb-badge-${t.category}">${catL}</span>
           <span class="qb-badge qb-badge-${t.priority||'medium'}">${(t.priority||'medium').charAt(0).toUpperCase()+(t.priority||'medium').slice(1)}</span>
           ${t.startTime?`<span class="qb-text-xs qb-text-dim"><i class="fas fa-clock" style="font-size:.6rem"></i> ${fmtTime(t.startTime)}${t.endTime?' - '+fmtTime(t.endTime):''}</span>`:''}
@@ -958,7 +967,7 @@ function renderDashboard(){
   const saveBtn=$('#dashSave');
   if(saveBtn)saveBtn.onclick=async()=>{
     const inp=$('#dashInput');if(!inp.value.trim())return;
-    const t={id:uuid(),title:inp.value.trim(),description:'',category:'daily',energyLevel:'medium',dueDate:td,startTime:null,endTime:null,completed:false,completedAt:null,createdAt:nowISO(),priority:'medium',tags:[],attachments:[],subtasks:[],recurrence:'none',xpEarned:0};
+    const t={id:uuid(),title:inp.value.trim(),description:'',category:'daily',energyLevel:'medium',dueDate:td,startTime:null,endTime:null,completed:false,completedAt:null,createdAt:nowISO(),priority:'medium',tags:[],attachments:[],subtasks:[],recurrence:'none',xpEarned:0,alarmOffset:null};
     await db.add('tasks',t);await loadTasks();showToast('Task added!','success');renderDashboard();
   };
   $$('#dashTasks .qb-task-check').forEach(el=>{
@@ -1105,6 +1114,7 @@ function taskCard(t){
         <div class="qb-row qb-between" style="gap:6px">
           <div class="qb-task-title ${t.completed?'':'qb-truncate'}" style="flex:1;min-width:0">${escHtml(t.title)}</div>
           ${gam.settings.mode!=='zen'?`<span class="qb-xp-badge" style="flex-shrink:0;${t.priority==='boss'?'background:rgba(239,68,68,.2);color:var(--danger)':''}"><i class="fas fa-bolt"></i> ${xpVal} XP</span>`:''}
+          ${t.alarmOffset!=null?`<span class="qb-text-xs" style="color:var(--warning);flex-shrink:0" title="Task alarm set"><i class="fas fa-bell"></i></span>`:''}
         </div>
         <div style="display:flex;flex-wrap:wrap;gap:4px 8px;margin-top:6px;align-items:center">
           <span class="qb-badge qb-badge-${t.category}">${catL}</span>
@@ -1197,6 +1207,7 @@ function openTaskModal(editId){
       </div>
       <div class="qb-form-group"><label class="qb-label">Tags (comma separated)</label><input type="text" class="qb-input" id="mtTags" value="${(t&&t.tags?t.tags.join(', '):'')}"></div>
       <div class="qb-form-group"><label class="qb-label">Recurrence</label><select class="qb-select" id="mtRec"><option value="none"${t&&t.recurrence==='none'?' selected':''}>None</option><option value="daily"${t&&t.recurrence==='daily'?' selected':''}>Daily</option><option value="weekly"${t&&t.recurrence==='weekly'?' selected':''}>Weekly</option><option value="monthly"${t&&t.recurrence==='monthly'?' selected':''}>Monthly</option></select></div>
+      <div class="qb-form-group"><label class="qb-label"><i class="fas fa-bell" style="color:var(--warning);margin-right:4px"></i>Alarm</label><select class="qb-select" id="mtAlarm"><option value="null"${(!t||!t.alarmOffset)?' selected':''}>No Alarm</option><option value="-10"${t&&t.alarmOffset===-10?' selected':''}>10 min before</option><option value="-30"${t&&t.alarmOffset===-30?' selected':''}>30 min before</option><option value="0"${t&&t.alarmOffset===0?' selected':''}>At deadline</option><option value="10"${t&&t.alarmOffset===10?' selected':''}>10 min after</option><option value="30"${t&&t.alarmOffset===30?' selected':''}>30 min after</option></select></div>
       <div class="qb-form-group">
         <label class="qb-label">Attachments (Images)</label>
         <input type="file" id="mtFiles" accept="image/*" multiple style="font-size:.85rem;color:var(--text2)">
@@ -1321,7 +1332,8 @@ function openTaskModal(editId){
       attachments:[...(t&&t.attachments?t.attachments:[]),...attData],
       subtasks:[...(t&&t.subtasks?t.subtasks:[]),
         ...$$('#mtSubtasks .qb-subtask').map(el=>({id:el.querySelector('input').dataset.subId,title:el.querySelector('input').value.trim()||'Untitled',completed:false}))],
-      recurrence:$('#mtRec').value,xpEarned:t?t.xpEarned:0
+      recurrence:$('#mtRec').value,xpEarned:t?t.xpEarned:0,
+      alarmOffset:$('#mtAlarm').value==='null'?null:parseInt($('#mtAlarm').value)
     };
     if(t)await db.put('tasks',taskData);else await db.add('tasks',taskData);
     await loadTasks();closeModal();showToast(t?'Quest updated':'Quest created!','success');renderTasks();
@@ -1654,7 +1666,7 @@ function renderNotes(){
       <h2 class="qb-text-xl qb-bold">Notes</h2>
       <button class="qb-btn qb-btn-primary" id="newNoteBtn"><i class="fas fa-plus"></i> New Note</button>
     </div>
-    <div style="display:flex;gap:16px;align-items:flex-start">
+    <div class="qb-notes-layout" style="display:flex;gap:16px;align-items:flex-start">
       <div style="width:240px" class="qb-shrink-0">
         <div class="qb-filter-bar qb-mb-8"><input type="text" class="qb-input" id="noteSearch" placeholder="Search notes..."></div>
         <div id="noteList">${sortedNotes.length===0?'<p class="qb-text-muted qb-text-xs" style="padding:12px;text-align:center">No notes yet</p>':sortedNotes.map(n=>`<div class="qb-note-card qb-mb-4${n.pinned?' pinned':''}" data-id="${n.id}" style="border-left:3px solid ${n.color||'var(--accent)'}"><div class="qb-text-sm qb-semibold qb-truncate">${escHtml(n.title||'Untitled')}</div><div class="qb-text-xs qb-text-dim qb-mt-4">${fmtDate(n.updatedAt)}</div></div>`).join('')}</div>
@@ -1946,6 +1958,161 @@ function renderMoodBoard(){
     }
   };
 
+  // Touch support for mood board
+  let touchItem=null,touchOX=0,touchOY=0;
+  let touchPanning=false,touchPanStartX=0,touchPanStartY=0,touchPanTX=0,touchPanTY=0;
+  let lastTapTime=0;
+
+  canvas.addEventListener('touchstart',function(e){
+    e.preventDefault();
+    const touch=e.touches[0];
+    const itemEl=document.elementFromPoint(touch.clientX,touch.clientY);
+
+    // Double-tap detection for editing
+    const now2=Date.now();
+    if(now2-lastTapTime<300){
+      // Simulate double-click
+      const dcEvent=new MouseEvent('dblclick',{clientX:touch.clientX,clientY:touch.clientY});
+      canvas.dispatchEvent(dcEvent);
+      lastTapTime=0;
+      return;
+    }
+    lastTapTime=now2;
+
+    const moodItem=itemEl?itemEl.closest('.qb-mood-item'):null;
+    const resizeH=itemEl?itemEl.closest('.qb-resize-handle'):null;
+
+    // 1. Resize handle
+    if(resizeH){
+      const item=S.moodItems.find(i=>i.id===resizeH.dataset.resizeId);
+      if(!item)return;
+      const startX=touch.clientX,startY=touch.clientY;
+      const startW=item.width||150,startH=item.height||100;
+      const onMove2=function(ev2){
+        ev2.preventDefault();
+        const t2=ev2.touches[0];
+        item.width=Math.max(40,startW+(t2.clientX-startX));
+        item.height=Math.max(30,startH+(t2.clientY-startY));
+        const el=document.querySelector('.qb-mood-item[data-id="'+item.id+'"]');
+        if(el){el.style.width=item.width+'px';el.style.height=item.height+'px'}
+        renderConnectors();
+      };
+      const onEnd2=function(){canvas.removeEventListener('touchmove',onMove2);canvas.removeEventListener('touchend',onEnd2);saveMood()};
+      canvas.addEventListener('touchmove',onMove2,{passive:false});
+      canvas.addEventListener('touchend',onEnd2);
+      return;
+    }
+
+    // 2. Connect tool
+    if(S.mood.tool==='connect'&&moodItem){
+      const item=S.moodItems.find(i=>i.id===moodItem.dataset.id);
+      if(!item)return;
+      S.mood.connFrom=moodItem.dataset.id;
+      S.mood.connDragging=true;
+      S.mood.connSourceRect=moodItem.getBoundingClientRect();
+      $$('.qb-mood-item').forEach(el=>el.classList.remove('selected'));
+      moodItem.classList.add('selected');
+      var tempLine=document.createElement('div');
+      tempLine.id='tempConnLine';
+      tempLine.style.cssText='position:fixed;pointer-events:none;z-index:300;height:2px;background:var(--accent);transform-origin:0 0;opacity:.7';
+      document.body.appendChild(tempLine);
+      return;
+    }
+
+    // 3. Select tool - drag items
+    if(S.mood.tool==='select'&&moodItem){
+      const item=S.moodItems.find(i=>i.id===moodItem.dataset.id);
+      if(!item)return;
+      S.mood.sel=moodItem.dataset.id;
+      touchItem=moodItem;
+      touchOX=touch.clientX-item.x;
+      touchOY=touch.clientY-item.y;
+      $$('.qb-mood-item').forEach(el=>el.classList.remove('selected'));
+      moodItem.classList.add('selected');
+      return;
+    }
+
+    // 4. Create items
+    if(S.mood.tool==='sticky'||S.mood.tool==='text'||S.mood.tool==='box'){
+      const rect=canvas.getBoundingClientRect();
+      const x=touch.clientX-rect.left;
+      const y=touch.clientY-rect.top;
+      const cols=['#8b5cf6','#3b82f6','#22c55e','#eab308','#ef4444','#ec4899'];
+      const item={
+        id:uuid(),type:S.mood.tool,x,y,
+        width:S.mood.tool==='sticky'?160:S.mood.tool==='box'?120:100,
+        height:S.mood.tool==='sticky'?110:S.mood.tool==='box'?80:40,
+        content:'',color:cols[Math.floor(Math.random()*cols.length)],createdAt:nowISO()
+      };
+      S.moodItems.push(item);renderItems();saveMood();
+      return;
+    }
+
+    // 5. Panning
+    if(S.mood.tool==='select'&&!moodItem){
+      touchPanning=true;
+      touchPanStartX=touch.clientX;touchPanStartY=touch.clientY;
+      const transform=itemsEl.style.transform||'';
+      const match=transform.match(/translate\(([^,)]+),\s*([^)]+)\)/);
+      touchPanTX=match?parseFloat(match[1]):0;
+      touchPanTY=match?parseFloat(match[2]):0;
+    }
+  },{passive:false});
+
+  canvas.addEventListener('touchmove',function(e){
+    e.preventDefault();
+    const touch=e.touches[0];
+    if(touchItem){
+      const item=S.moodItems.find(i=>i.id===touchItem.dataset.id);
+      if(item){
+        item.x=touch.clientX-touchOX;
+        item.y=touch.clientY-touchOY;
+        touchItem.style.left=item.x+'px';
+        touchItem.style.top=item.y+'px';
+        renderConnectors();
+      }
+    }
+    if(touchPanning){
+      const dx=touchPanTX+(touch.clientX-touchPanStartX);
+      const dy=touchPanTY+(touch.clientY-touchPanStartY);
+      itemsEl.style.transform='translate('+dx+'px,'+dy+'px)';
+      svgEl.style.transform='translate('+dx+'px,'+dy+'px)';
+    }
+    if(S.mood.connDragging){
+      var tl=document.getElementById('tempConnLine');
+      if(tl&&S.mood.connSourceRect){
+        var sx=S.mood.connSourceRect.left+S.mood.connSourceRect.width/2;
+        var sy=S.mood.connSourceRect.top+S.mood.connSourceRect.height/2;
+        var ddx=touch.clientX-sx;
+        var ddy=touch.clientY-sy;
+        var len=Math.sqrt(ddx*ddx+ddy*ddy);
+        var angle=Math.atan2(ddy,ddx)*180/Math.PI;
+        tl.style.left=sx+'px';tl.style.top=sy+'px';tl.style.width=len+'px';tl.style.transform='rotate('+angle+'deg)';
+      }
+    }
+  },{passive:false});
+
+  canvas.addEventListener('touchend',function(e){
+    if(touchItem){saveMood();touchItem=null}
+    if(touchPanning){touchPanning=false}
+    if(S.mood.connDragging){
+      S.mood.connDragging=false;
+      var tempLine=document.getElementById('tempConnLine');
+      if(tempLine)tempLine.remove();
+      var ct=e.changedTouches[0];
+      var elUnder=document.elementFromPoint(ct.clientX,ct.clientY);
+      var targetEl=elUnder?elUnder.closest('.qb-mood-item'):null;
+      if(targetEl&&targetEl.dataset.id!==S.mood.connFrom){
+        S.moodItems.push({id:uuid(),type:'connector',fromId:S.mood.connFrom,toId:targetEl.dataset.id,x:0,y:0,width:0,height:0,content:'',color:'#8b5cf6',createdAt:nowISO()});
+        renderItems();saveMood();showToast('Items connected!','success');
+      }
+      S.mood.connFrom=null;S.mood.connSourceRect=null;
+    }
+  });
+
+  // Make resize handles bigger for touch
+  $$('.qb-resize-handle').forEach(h=>{h.style.width='20px';h.style.height='20px';h.style.right='-8px';h.style.bottom='-8px'});
+
   // Double-click to edit text/sticky content
   canvas.ondblclick=e=>{
     const itemEl=e.target.closest('.qb-mood-item');
@@ -2108,6 +2275,217 @@ function renderMoodBoard(){
   };
 }
 
+// ==================== ALARMS VIEW ====================
+function renderAlarms(){
+  const vc=$('#viewContainer');
+  const sortedAlarms=S.alarms.sort((a,b)=>a.time.localeCompare(b.time));
+  vc.innerHTML=`<div class="qb-view">
+    <div class="qb-row qb-between qb-mb-8">
+      <h2 class="qb-text-xl qb-bold"><i class="fas fa-bell" style="color:var(--warning);margin-right:6px"></i>Alarms</h2>
+      <button class="qb-btn qb-btn-primary" id="addAlarmBtn"><i class="fas fa-plus"></i> New Alarm</button>
+    </div>
+    <div id="alarmList">${sortedAlarms.length===0?'<div class="qb-card" style="text-align:center;padding:50px 20px;color:var(--text3)"><i class="fas fa-bell" style="font-size:2.5rem;display:block;margin-bottom:12px"></i><div>No alarms set</div><div class="qb-text-xs qb-mt-4">Click "New Alarm" to create one</div></div>':sortedAlarms.map(a=>{
+      const repeatLbl={none:'Once',daily:'Daily',weekly:'Weekly',custom:'Custom'}[a.repeat]||'Once';
+      const dayNames=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+      const customDaysStr=a.repeat==='custom'&&a.customDays?a.customDays.map(d=>dayNames[d]).join(', '):'';
+      return `<div class="qb-card qb-mb-4 qb-p-8" style="border-left:3px solid ${a.enabled?'var(--warning)':'var(--border)'}">
+        <div class="qb-row qb-between" style="flex-wrap:nowrap">
+          <div class="qb-flex-1" style="min-width:0">
+            <div class="qb-row qb-gap-8" style="align-items:center;flex-wrap:nowrap">
+              <span class="qb-text-lg qb-bold" style="flex-shrink:0">${escHtml(a.time)}</span>
+              <span class="qb-badge" style="background:var(--warning)22;color:var(--warning)">${repeatLbl}${customDaysStr?' ('+customDaysStr+')':''}</span>
+            </div>
+            <div class="qb-text-sm qb-text-muted qb-mt-4">${escHtml(a.label||'No label')}</div>
+            ${a.voiceNote?`<div class="qb-text-xs qb-mt-4" style="color:var(--success)"><i class="fas fa-microphone"></i> Voice note attached</div>`:''}
+          </div>
+          <div class="qb-row qb-gap-8" style="flex-shrink:0;align-items:center">
+            <button class="qb-toggle${a.enabled?' on':''}" data-alarm-toggle="${a.id}" style="width:38px;height:20px"></button>
+            <button class="qb-btn-icon" data-alarm-edit="${a.id}" title="Edit"><i class="fas fa-pen"></i></button>
+            <button class="qb-btn-icon" data-alarm-del="${a.id}" title="Delete" style="border-color:var(--danger);color:var(--danger)"><i class="fas fa-trash"></i></button>
+          </div>
+        </div>
+      </div>`;
+    }).join('')}</div>
+  </div>`;
+
+  $('#addAlarmBtn').onclick=()=>openAlarmModal();
+  $$('[data-alarm-toggle]').forEach(btn=>{
+    btn.onclick=async()=>{
+      const alarm=S.alarms.find(a=>a.id===btn.dataset.alarmToggle);
+      if(alarm){alarm.enabled=!alarm.enabled;await db.put('alarms',alarm);S.alarms=S.alarms.map(a=>a.id===alarm.id?alarm:a);renderAlarms();showToast(alarm.enabled?'Alarm enabled':'Alarm disabled','info')}
+    };
+  });
+  $$('[data-alarm-edit]').forEach(btn=>{btn.onclick=()=>openAlarmModal(btn.dataset.alarmEdit)});
+  $$('[data-alarm-del]').forEach(btn=>{
+    btn.onclick=async()=>{
+      if(!confirm('Delete this alarm?'))return;
+      await db.del('alarms',btn.dataset.alarmDel);S.alarms=S.alarms.filter(a=>a.id!==btn.dataset.alarmDel);renderAlarms();showToast('Alarm deleted','info');
+    };
+  });
+}
+
+function openAlarmModal(editId){
+  const a=editId?S.alarms.find(x=>x.id===editId):null;
+  const now=new Date();
+  const defH=a?a.time.split(':')[0]:String(now.getHours()).padStart(2,'0');
+  const defM=a?a.time.split(':')[1]:String(now.getMinutes()).padStart(2,'0');
+  const selRepeat=a?a.repeat:'none';
+  const dayNames=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+  const customDays=a&&a.customDays?a.customDays:[];
+
+  showModal(`<div class="qb-modal-header"><span class="qb-modal-title">${a?'Edit Alarm':'New Alarm'}</span><button class="qb-modal-close" id="closeModal"><i class="fas fa-times"></i></button></div>
+    <div class="qb-modal-body">
+      <div class="qb-form-group"><label class="qb-label"><i class="fas fa-clock" style="color:var(--accent);margin-right:4px"></i>Time</label><div class="qb-row qb-gap-8"><input type="time" class="qb-input" id="alarmTime" value="${defH}:${defM}" style="flex:1"></div></div>
+      <div class="qb-form-group"><label class="qb-label">Label</label><input type="text" class="qb-input" id="alarmLabel" value="${escHtml(a?a.label:'')}" placeholder="e.g. Meeting reminder"></div>
+      <div class="qb-form-group"><label class="qb-label">Repeat</label><select class="qb-select" id="alarmRepeat"><option value="none"${selRepeat==='none'?' selected':''}>Once</option><option value="daily"${selRepeat==='daily'?' selected':''}>Daily</option><option value="weekly"${selRepeat==='weekly'?' selected':''}>Weekly</option><option value="custom"${selRepeat==='custom'?' selected':''}>Custom Days</option></select></div>
+      <div class="qb-form-group" id="alarmCustomDaysWrap" style="${selRepeat==='custom'?'':'display:none'}"><label class="qb-label">Custom Days</label><div class="qb-row qb-gap-4" style="flex-wrap:wrap">${dayNames.map((d,i)=>`<button class="qb-chip${customDays.includes(i)?' active':''}" data-alarm-day="${i}">${d}</button>`).join('')}</div></div>
+      <div class="qb-form-group">
+        <div class="qb-row qb-gap-8">
+          <button class="qb-btn qb-btn-secondary qb-btn-sm" id="alarmVoiceBtn"><i class="fas fa-microphone"></i> Voice Memo</button>
+          <span id="alarmVoiceStatus" class="qb-text-xs qb-text-dim"></span>
+        </div>
+        ${a&&a.voiceNote?`<div class="qb-mt-4"><audio controls src="${a.voiceNote.data}" preload="none" style="width:100%"></audio></div>`:''}
+      </div>
+    </div>
+    <div class="qb-modal-footer"><button class="qb-btn qb-btn-secondary" id="cancelModal">Cancel</button><button class="qb-btn qb-btn-primary" id="saveAlarm">Save Alarm</button></div>`);
+
+  $('#closeModal').onclick=closeModal;
+  $('#cancelModal').onclick=closeModal;
+
+  // Custom days toggle
+  $('#alarmRepeat').onchange=()=>{
+    $('#alarmCustomDaysWrap').style.display=$('#alarmRepeat').value==='custom'?'':'none';
+  };
+  $$('[data-alarm-day]').forEach(btn=>{
+    btn.onclick=()=>btn.classList.toggle('active');
+  });
+
+  // Voice memo
+  let mediaRec=null,voiceChunks=[],voiceTimer=null,voiceData=a&&a.voiceNote?a.voiceNote:null;
+  $('#alarmVoiceBtn').onclick=async()=>{
+    if(mediaRec&&mediaRec.state==='recording'){
+      mediaRec.stop();clearInterval(voiceTimer);$('#alarmVoiceStatus').textContent='Processing...';
+    }else{
+      try{
+        const stream=await navigator.mediaDevices.getUserMedia({audio:true});
+        mediaRec=new MediaRecorder(stream);voiceChunks=[];
+        mediaRec.ondataavailable=e=>{if(e.data.size>0)voiceChunks.push(e.data)};
+        mediaRec.onstop=()=>{
+          stream.getTracks().forEach(t=>t.stop());
+          const blob=new Blob(voiceChunks,{type:'audio/webm'});
+          const reader=new FileReader();
+          reader.onload=()=>{
+            voiceData={data:reader.result,mimeType:'audio/webm'};
+            $('#alarmVoiceStatus').textContent='Voice memo recorded';
+          };
+          reader.readAsDataURL(blob);
+        };
+        mediaRec.start();let sec=0;
+        $('#alarmVoiceStatus').innerHTML='<span class="qb-rec"><span class="qb-rec-dot"></span> Recording...</span>';
+        voiceTimer=setInterval(()=>{sec++;$('#alarmVoiceStatus').innerHTML=`<span class="qb-rec"><span class="qb-rec-dot"></span> ${Math.floor(sec/60)}:${String(sec%60).padStart(2,'0')}</span>`},1000);
+      }catch(e){showToast('Microphone access denied','error')}
+    }
+  };
+
+  // Save
+  $('#saveAlarm').onclick=async()=>{
+    const time=$('#alarmTime').value;
+    if(!time){showToast('Time required','error');return}
+    const repeat=$('#alarmRepeat').value;
+    const customDays=repeat==='custom'?[...$$('[data-alarm-day].active')].map(b=>parseInt(b.dataset.alarmDay)):[];
+    const alarmData={
+      id:a?a.id:uuid(),
+      time:time,
+      label:$('#alarmLabel').value.trim()||'',
+      repeat:repeat,
+      customDays:customDays,
+      voiceNote:voiceData,
+      enabled:a?a.enabled:true,
+      createdAt:a?a.createdAt:nowISO(),
+      lastTriggered:a?a.lastTriggered:null
+    };
+    if(a)await db.put('alarms',alarmData);else await db.add('alarms',alarmData);
+    S.alarms=await db.getAll('alarms');
+    closeModal();showToast(a?'Alarm updated':'Alarm created!','success');renderAlarms();
+  };
+}
+
+// ==================== ALARM CHECKER (standalone + task alarms) ====================
+function playAlarmSound(){
+  try{
+    const ctx=new(window.AudioContext||window.webkitAudioContext)();
+    const osc=ctx.createOscillator();
+    const gain=ctx.createGain();
+    osc.connect(gain);gain.connect(ctx.destination);
+    osc.frequency.setValueAtTime(880,ctx.currentTime);
+    osc.frequency.setValueAtTime(1100,ctx.currentTime+0.15);
+    osc.frequency.setValueAtTime(880,ctx.currentTime+0.3);
+    gain.gain.setValueAtTime(0.3,ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.01,ctx.currentTime+0.8);
+    osc.start(ctx.currentTime);osc.stop(ctx.currentTime+0.8);
+    setTimeout(()=>{osc.disconnect();ctx.close()},1000);
+  }catch(e){}
+}
+
+function sendNotification(title,body){
+  const settings=gam.settings;
+  if(settings.notificationsEnabled&&Notification.permission==='granted'){
+    try{new Notification(title,{body:body,icon:'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text y=".9em" font-size="90">🔔</text></svg>'})}catch(e){}
+  }
+}
+
+function startAlarmChecker(){
+  setInterval(async()=>{
+    const now=new Date();
+    const curTime=String(now.getHours()).padStart(2,'0')+':'+String(now.getMinutes()).padStart(2,'0');
+    const curDay=now.getDay();
+    const settings=gam.settings;
+
+    // Check standalone alarms
+    const alarms=await db.getAll('alarms');
+    for(const a of alarms){
+      if(!a.enabled)continue;
+      if(a.lastTriggered){
+        const lt=new Date(a.lastTriggered);
+        if(now.getTime()-lt.getTime()<55000)continue;
+      }
+      if(a.time!==curTime)continue;
+      // Check repeat
+      if(a.repeat==='daily'){}
+      else if(a.repeat==='weekly'&&(curDay!==new Date(a.createdAt).getDay()))continue;
+      else if(a.repeat==='custom'&&(!a.customDays||!a.customDays.includes(curDay)))continue;
+      else if(a.repeat==='none'&&a.lastTriggered)continue;
+      // Fire alarm
+      a.lastTriggered=nowISO();
+      await db.put('alarms',a);
+      if(settings.alarmSounds)playAlarmSound();
+      sendNotification('Alarm: '+(a.label||'QuestBoard'),fmtTime(a.time)+' - '+(a.label||'Alarm triggered'));
+      showToast('Alarm: '+(a.label||'Alarm triggered'),'warning');
+    }
+
+    // Check task alarms
+    if(!settings.taskReminders)return;
+    const tasks=await db.getAll('tasks');
+    for(const t of tasks){
+      if(!t.alarmOffset&&t.alarmOffset!==0)continue;
+      if(t.completed)continue;
+      if(!t.dueDate||!t.startTime)continue;
+      const taskDateTime=new Date(t.dueDate+'T'+t.startTime);
+      const alarmTime=new Date(taskDateTime.getTime()+t.alarmOffset*60000);
+      if(Math.abs(now.getTime()-alarmTime.getTime())<30000){
+        // Check if we already notified (use lastTriggered-like field or a simple guard)
+        const notifKey='task_alarm_'+t.id+'_'+now.toISOString().split('T')[0]+'_'+String(alarmTime.getHours()).padStart(2,'0')+String(alarmTime.getMinutes()).padStart(2,'0');
+        if(sessionStorage.getItem(notifKey))continue;
+        sessionStorage.setItem(notifKey,'1');
+        if(settings.alarmSounds)playAlarmSound();
+        const offsetLbl=t.alarmOffset===0?'at deadline':t.alarmOffset<0?Math.abs(t.alarmOffset)+' min before':t.alarmOffset+' min after';
+        sendNotification('Task Alarm: '+t.title,offsetLbl+' - '+fmtTime(t.startTime));
+        showToast('Task Alarm: '+t.title,'warning');
+      }
+    }
+  },30000);
+}
+
 // ==================== ANALYTICS VIEW ====================
 function renderAnalytics(){
   // Destroy old charts
@@ -2204,6 +2582,16 @@ function renderSettings(){
       </div>
     </div>
 
+    <!-- Notifications -->
+    <div class="qb-card qb-mb-12">
+      <h3 class="qb-text-lg qb-semibold qb-mb-8"><i class="fas fa-bell"></i> Notifications</h3>
+      <div id="notifToggleList">
+        <div class="qb-toggle-row"><div><div class="qb-semibold qb-text-sm">Enable Notifications</div><div class="qb-text-xs qb-text-dim">Allow browser push notifications for alarms</div></div><button class="qb-toggle${s.notificationsEnabled?' on':''}" data-key="notificationsEnabled" id="notifPermBtn"></button></div>
+        <div class="qb-toggle-row"><div><div class="qb-semibold qb-text-sm">Alarm Sounds</div><div class="qb-text-xs qb-text-dim">Play beep sound when alarm fires</div></div><button class="qb-toggle${s.alarmSounds?' on':''}" data-key="alarmSounds"></button></div>
+        <div class="qb-toggle-row"><div><div class="qb-semibold qb-text-sm">Task Reminders</div><div class="qb-text-xs qb-text-dim">Fire alarms set on tasks</div></div><button class="qb-toggle${s.taskReminders?' on':''}" data-key="taskReminders"></button></div>
+      </div>
+    </div>
+
     <!-- Theme -->
     <div class="qb-card qb-mb-12">
       <h3 class="qb-text-lg qb-semibold qb-mb-8"><i class="fas fa-palette"></i> Theme</h3>
@@ -2240,7 +2628,17 @@ function renderSettings(){
   // Toggles
   $$('.qb-toggle').forEach(btn=>{
     btn.onclick=async()=>{
-      const key=btn.dataset.key;gam.settings[key]=!gam.settings[key];
+      const key=btn.dataset.key;
+      if(key==='notificationsEnabled'){
+        const newState=!gam.settings[key];
+        if(newState&&Notification.permission!=='granted'){
+          const perm=await Notification.requestPermission();
+          if(perm!=='granted'){showToast('Notification permission denied','error');return}
+        }
+        gam.settings[key]=newState;
+      }else{
+        gam.settings[key]=!gam.settings[key];
+      }
       btn.classList.toggle('on');gam.data.settings={...gam.settings};await gam.save();gam.saveSettings();renderSidebarGam();
     };
   });
@@ -2274,7 +2672,7 @@ function renderSettings(){
   $('#clearAllBtn').onclick=async()=>{
     if(!confirm('This will permanently delete ALL your data. Are you sure?'))return;
     if(!confirm('Really? This cannot be undone.'))return;
-    for(const s of['tasks','notes','moodBoardItems','gamification','analytics'])await db.clear(s);
+    for(const s of['tasks','notes','moodBoardItems','gamification','analytics','alarms'])await db.clear(s);
     localStorage.removeItem('qb_settings');showToast('All data cleared. Reloading...','info');
     setTimeout(()=>location.reload(),1000);
   };
@@ -2293,6 +2691,7 @@ function navigate(view){
     case'tasks':renderTasks();break;
     case'calendar':renderCalendar();break;
     case'notes':renderNotes();break;
+    case'alarms':renderAlarms();break;
     case'moodboard':renderMoodBoard();break;
     case'analytics':renderAnalytics();break;
     case'settings':renderSettings();break;
@@ -2373,6 +2772,8 @@ document.addEventListener('DOMContentLoaded',async()=>{
     await db.init();
     await gam.load();
     await loadAll();
+    S.alarms=await db.getAll('alarms');
+    startAlarmChecker();
     setupEvents();
     setupPWA();
     renderSidebarGam();
